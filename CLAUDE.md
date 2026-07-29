@@ -43,6 +43,7 @@ Read only the files relevant to the current task, plus any directly linked depen
 | CI/CD, releases, rollback, environments | `docs/14-deployment-and-environments.md` | `docs/08-terraform-standards.md` |
 | Deferred features or future improvements | `docs/15-future-state-backlog.md` | relevant ADR or scope file |
 | Why a major architecture choice was made | `docs/adr/` | `docs/16-decision-register.md` |
+| Branch naming, PR flow, merge rules | `docs/17-developer-workflow.md` | `docs/14-deployment-and-environments.md` |
 | Original research and external rationale | `docs/research/deep-research-report.md` | only when current docs are insufficient |
 
 ## Phase 1 boundaries
@@ -95,6 +96,16 @@ infra/
   environments/
 docs/
 ```
+
+## Local verification
+
+After every code change, run `pnpm verify` before reporting the task as complete. It runs the same four checks the `node` job runs in CI (`.github/workflows/ci.yml`): `lint`, `typecheck`, `test`, `build`. If any step fails, fix it before handing back. Skip only when the user explicitly says so (e.g. "don't run tests", "skip verify"), or when the change touches nothing the checks can see (pure docs/infra edits — infra has its own `pnpm infra:validate`).
+
+Husky enforces the same gates in source control: `.husky/pre-commit` runs `lint` + `typecheck`, `.husky/pre-push` runs the full `pnpm verify`. Never bypass with `--no-verify` unless the user explicitly asks for it.
+
+## Source control workflow
+
+`main` is release-only. Never commit or push directly to `main` — the Husky hooks will reject it. Cut branches from `dev` using the prefixes `feat/`, `fix/`, `chore/`, or `task/`, and open PRs against `dev`. Direct commits to `dev` are allowed as an escape hatch when the user asks for them. Full conventions live in [`docs/17-developer-workflow.md`](docs/17-developer-workflow.md).
 
 ## Definition of done
 

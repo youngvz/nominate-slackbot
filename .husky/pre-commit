@@ -1,0 +1,20 @@
+# Block direct commits to protected branches. Work on a feature branch and open a PR.
+branch=$(git symbolic-ref --short HEAD 2>/dev/null || echo "")
+case "$branch" in
+  main|master)
+    echo "✗ Direct commits to '$branch' are not allowed. Create a branch (feat/…, fix/…, chore/…, task/…) and open a PR against dev."
+    exit 1
+    ;;
+esac
+
+# Warn if the branch name doesn't match the [prefix]/[optional-description] convention.
+case "$branch" in
+  feat/*|fix/*|chore/*|task/*|dev|"")
+    ;;
+  *)
+    echo "⚠ Branch '$branch' does not use a recognized prefix (feat/, fix/, chore/, task/). Continuing anyway."
+    ;;
+esac
+
+# Fast checks on commit. Full `pnpm verify` (which also runs test + build) fires on pre-push.
+pnpm lint && pnpm typecheck
