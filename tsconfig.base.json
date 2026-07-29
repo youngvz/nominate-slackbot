@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "exactOptionalPropertyTypes": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "incremental": true,
+    "composite": true,
+    "types": ["node"],
+    "paths": {
+      "@nominate/domain": ["./packages/domain/src/index.ts"],
+      "@nominate/domain/*": ["./packages/domain/src/*"],
+      "@nominate/contracts": ["./packages/contracts/src/index.ts"],
+      "@nominate/contracts/*": ["./packages/contracts/src/*"],
+      "@nominate/slack": ["./packages/slack/src/index.ts"],
+      "@nominate/slack/*": ["./packages/slack/src/*"],
+      "@nominate/persistence": ["./packages/persistence/src/index.ts"],
+      "@nominate/persistence/*": ["./packages/persistence/src/*"],
+      "@nominate/configuration": ["./packages/configuration/src/index.ts"],
+      "@nominate/configuration/*": ["./packages/configuration/src/*"],
+      "@nominate/observability": ["./packages/observability/src/index.ts"],
+      "@nominate/observability/*": ["./packages/observability/src/*"]
+    }
+  },
+  "exclude": ["node_modules", "dist", ".turbo"]
+}

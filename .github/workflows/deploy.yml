@@ -1,0 +1,67 @@
+name: Deploy
+
+# docs/14-deployment-and-environments.md §Deployment order.
+# Production applies require explicit approval (docs/08 §Apply workflow).
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment (dev, staging, production).
+        required: true
+        type: choice
+        options: [dev, staging, production]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  plan:
+    name: plan (${{ inputs.environment }})
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}-plan
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r build
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.10.0
+      - name: terraform plan
+        working-directory: infra/environments/${{ inputs.environment }}
+        run: |
+          terraform init -input=false
+          terraform plan -out tfplan -input=false
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ inputs.environment }}
+          path: infra/environments/${{ inputs.environment }}/tfplan
+          retention-days: 7
+
+  apply:
+    name: apply (${{ inputs.environment }})
+    needs: plan
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.10.0
+      - uses: actions/download-artifact@v4
+        with:
+          name: tfplan-${{ inputs.environment }}
+          path: infra/environments/${{ inputs.environment }}
+      - name: terraform apply (reviewed plan)
+        working-directory: infra/environments/${{ inputs.environment }}
+        run: |
+          terraform init -input=false
+          terraform apply -input=false tfplan

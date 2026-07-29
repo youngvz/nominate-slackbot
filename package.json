@@ -1,0 +1,31 @@
+{
+  "name": "nominate-slackbot",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Internal Slack employee-recognition bot. See docs/ for authoritative behavior.",
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "lint": "pnpm -r --parallel lint",
+    "typecheck": "tsc -b",
+    "test": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "build": "pnpm -r --parallel build",
+    "dev": "pnpm -r --parallel --stream dev",
+    "infra:validate": "bash scripts/infra-validate.sh",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "@typescript-eslint/eslint-plugin": "^8.4.0",
+    "@typescript-eslint/parser": "^8.4.0",
+    "eslint": "^9.9.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.5.4",
+    "vitest": "^2.0.5"
+  }
+}

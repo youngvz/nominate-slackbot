@@ -1,0 +1,15 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/observability" },
+    { "path": "./packages/contracts" },
+    { "path": "./packages/domain" },
+    { "path": "./packages/configuration" },
+    { "path": "./packages/slack" },
+    { "path": "./packages/persistence" },
+    { "path": "./apps/slack-ingress" },
+    { "path": "./apps/nomination-worker" },
+    { "path": "./apps/reminder-job" },
+    { "path": "./apps/report-job" }
+  ]
+}

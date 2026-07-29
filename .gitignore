@@ -1,0 +1,40 @@
+node_modules
+dist
+.turbo
+.vitest-cache
+coverage
+*.tsbuildinfo
+.pnpm-debug.log*
+
+.env
+.env.*
+!.env.example
+
+.terraform
+# HashiCorp convention: commit .terraform.lock.hcl in root modules (the envs)
+# but not in reusable modules — the calling root's pins are what matter.
+.terraform.lock.hcl
+!infra/environments/*/.terraform.lock.hcl
+# docs/08-terraform-standards.md §Environment configuration: never commit
+# real tfvars. Only *.example files are tracked.
+*.tfvars
+*.tfvars.json
+*.auto.tfvars
+*.auto.tfvars.json
+!*.tfvars.example
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+
+# Credential material — belt-and-suspenders for docs/09 §Open-source controls.
+*.pem
+*.key
+*.p12
+*.pfx
+
+.DS_Store
+.idea
+.vscode
+*.log

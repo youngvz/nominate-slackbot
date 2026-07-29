@@ -1,0 +1,26 @@
+{
+  "name": "@nominate/app-slack-ingress",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run",
+    "dev": "echo 'slack-ingress dev entry TBD'"
+  },
+  "dependencies": {
+    "@nominate/configuration": "workspace:*",
+    "@nominate/contracts": "workspace:*",
+    "@nominate/domain": "workspace:*",
+    "@nominate/observability": "workspace:*",
+    "@nominate/persistence": "workspace:*",
+    "@nominate/slack": "workspace:*",
+    "@aws-sdk/client-sqs": "^3.630.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.143"
+  }
+}

@@ -1,0 +1,11 @@
+# Copy to terraform.tfvars and DO NOT commit the copy (docs/09 §Open-source controls).
+# Never commit production values (docs/08 §Environment configuration).
+aws_region             = "us-east-1"
+project                = "nominate-slackbot"
+environment            = "production"
+recognition_channel_id = "C00000000"
+maintainer_slack_ids   = []
+artifact_bucket        = "example-artifacts-bucket"
+owner                  = "team-recognition"
+cost_center            = ""
+data_classification    = "Internal"
