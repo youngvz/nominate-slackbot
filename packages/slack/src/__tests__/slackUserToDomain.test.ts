@@ -15,7 +15,7 @@ describe("slackProfileToDomain", () => {
     });
     expect(user).toEqual({
       slackId: "U123",
-      teamId: "T123",
+      teamIds: ["T123"],
       isBot: false,
       isApp: false,
       isGuest: false,
@@ -51,12 +51,54 @@ describe("slackProfileToDomain", () => {
 
   it("falls back to profile.team when top-level team_id is absent", () => {
     expect(
-      slackProfileToDomain({ id: "U6", profile: { team: "T_FROM_PROFILE" } }).teamId,
-    ).toBe("T_FROM_PROFILE");
+      slackProfileToDomain({ id: "U6", profile: { team: "T_FROM_PROFILE" } }).teamIds,
+    ).toEqual(["T_FROM_PROFILE"]);
   });
 
-  it("throws when id or team is missing", () => {
-    expect(() => slackProfileToDomain({ team_id: "T" })).toThrow();
-    expect(() => slackProfileToDomain({ id: "U" })).toThrow();
+  it("reads enterprise_user.teams for Enterprise Grid users", () => {
+    // Grid users.info returns team_id: null and every workspace membership
+    // under enterprise_user.teams.
+    expect(
+      slackProfileToDomain({
+        id: "U7",
+        team_id: null,
+        enterprise_user: {
+          id: "U7",
+          enterprise_id: "E123",
+          teams: ["T_A", "T_B"],
+        },
+      }).teamIds,
+    ).toEqual(["T_A", "T_B"]);
+  });
+
+  it("prefers enterprise_user.teams over top-level team_id when both are present", () => {
+    // Some Grid payloads carry both; enterprise_user is the fuller signal.
+    expect(
+      slackProfileToDomain({
+        id: "U8",
+        team_id: "T_TOP",
+        enterprise_user: { teams: ["T_A", "T_B"] },
+      }).teamIds,
+    ).toEqual(["T_A", "T_B"]);
+  });
+
+  it("ignores non-string entries in enterprise_user.teams and falls back if none valid", () => {
+    // Defensive: unknown payload shape should not throw. Empty grid list falls
+    // through to the top-level team_id.
+    expect(
+      slackProfileToDomain({
+        id: "U9",
+        team_id: "T_FALLBACK",
+        enterprise_user: { teams: [null, "", 42] },
+      }).teamIds,
+    ).toEqual(["T_FALLBACK"]);
+  });
+
+  it("throws when id is missing", () => {
+    expect(() => slackProfileToDomain({ team_id: "T" })).toThrow(/missing user id/);
+  });
+
+  it("throws when no team membership can be resolved", () => {
+    expect(() => slackProfileToDomain({ id: "U" })).toThrow(/missing team membership/);
   });
 });

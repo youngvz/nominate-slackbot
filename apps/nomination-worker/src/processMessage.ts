@@ -90,10 +90,13 @@ async function evaluate(
     return { outcome: "REJECTED_INVALID_DESCRIPTION", reason: description.reason };
   }
 
-  const recipientProfile = await deps.slack.getUser(event.recipientSlackId);
+  const recipientProfile = await deps.slack.getUser({
+    userSlackId: event.recipientSlackId,
+    workspaceId: event.workspaceId,
+  });
   const recipient = slackProfileToDomain(recipientProfile);
   const eligibility = evaluateRecipientEligibility(
-    { slackId: event.nominatorSlackId, teamId: event.workspaceId },
+    { slackId: event.nominatorSlackId, teamIds: [event.workspaceId] },
     recipient,
     event.workspaceId,
   );
@@ -155,9 +158,12 @@ async function feedbackMessage(
   event: NominationSubmissionRequestedV1,
   result: NominationResult,
   deps: ProcessMessageDeps,
-): Promise<{ channel: string; text: string }> {
-  const { channel } = await deps.slack.openDm({ userSlackId: event.nominatorSlackId });
-  return { channel, text: renderFeedback(event, result) };
+): Promise<{ channel: string; text: string; workspaceId: string }> {
+  const { channel } = await deps.slack.openDm({
+    userSlackId: event.nominatorSlackId,
+    workspaceId: event.workspaceId,
+  });
+  return { channel, text: renderFeedback(event, result), workspaceId: event.workspaceId };
 }
 
 function renderFeedback(

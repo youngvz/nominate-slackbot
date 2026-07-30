@@ -105,11 +105,14 @@ async function handleOneRecord(record: SQSRecord, deps: WorkerDeps): Promise<Rec
     await processMessage(event, deps);
     return "OK";
   } catch (err) {
+    // Log err.message + err.name. Message may include a Slack ID or ARN but
+    // never a signing secret / token / description body per docs/09 §Logging.
     deps.logger.error("worker_process_failed", {
       correlationId: event.correlationId,
       workspaceId: event.workspaceId,
       outcome: "retry",
       errorCategory: err instanceof Error ? err.name : "unknown",
+      errorMessage: err instanceof Error ? err.message : String(err),
     });
     return "RETRY";
   }

@@ -128,7 +128,10 @@ describe("processMessage", () => {
     const result = await processMessage(baseEvent(), h.deps);
 
     expect(result.outcome).toBe("ACCEPTED");
-    expect(h.slack.getUser).toHaveBeenCalledWith("U_B");
+    expect(h.slack.getUser).toHaveBeenCalledWith({
+      userSlackId: "U_B",
+      workspaceId: "T_TEAM",
+    });
     expect(h.nominations.acceptNomination).toHaveBeenCalledTimes(1);
     const call = h.nominations.acceptNomination.mock.calls[0]![0] as AcceptNominationInput;
     expect(call.nomination.status).toBe("ACTIVE");

@@ -173,6 +173,7 @@ async function ensurePublished({
     channel: deps.recognitionChannelId,
     text: message.text,
     blocks: message.blocks,
+    workspaceId: event.workspaceId,
   });
   const publishedAt = new Date(deps.now()).toISOString();
   await deps.reports.markPublished({
@@ -241,6 +242,7 @@ async function deliverWinnerDms({
     try {
       const { channel } = await deps.slack.openDm({
         userSlackId: winner.recipientSlackId,
+        workspaceId: event.workspaceId,
       });
       const dm = buildWinnerDm({
         periodStart: event.periodStart,
@@ -251,6 +253,7 @@ async function deliverWinnerDms({
         channel,
         text: dm.text,
         blocks: dm.blocks,
+        workspaceId: event.workspaceId,
       });
       await deps.reports.updateDmDelivery({
         workspaceId: event.workspaceId,
