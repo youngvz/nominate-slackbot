@@ -1,3 +1,13 @@
-# Secrets Manager containers for Slack signing secret and bot token.
-# The module provisions containers and permissions ONLY. Values are populated by
-# an approved out-of-band process (docs/08 §State + docs/09 §Secrets).
+resource "aws_secretsmanager_secret" "signing_secret" {
+  name        = "${var.project}-${var.environment}-slack-signing-secret"
+  description = "Slack signing secret for ${var.project} ${var.environment}. Value populated out-of-band."
+  kms_key_id  = var.kms_key_arn == "" ? null : var.kms_key_arn
+  tags        = var.tags
+}
+
+resource "aws_secretsmanager_secret" "bot_token" {
+  name        = "${var.project}-${var.environment}-slack-bot-token"
+  description = "Slack bot token for ${var.project} ${var.environment}. Value populated out-of-band."
+  kms_key_id  = var.kms_key_arn == "" ? null : var.kms_key_arn
+  tags        = var.tags
+}

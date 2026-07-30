@@ -49,6 +49,10 @@ DynamoDB schema changes should be additive whenever possible. Introduce new attr
 - For a broken schedule, disable the schedule without deleting execution history.
 - Preserve idempotency records across rollback.
 
+## Teardown
+
+The `dev` environment is designed to be torn down freely. Run `bash scripts/infra-destroy.sh dev` (or `pnpm infra:destroy dev`); the script prints a `terraform plan -destroy` and pauses for interactive confirmation before applying. Production requires the explicit `--yes-really-production` flag as a guard rail — for example `bash scripts/infra-destroy.sh production --yes-really-production`. The S3 bucket that holds Terraform state is bootstrapped out-of-band and is not managed by this repo, so it survives a `destroy`; the state files inside it also persist, which means a subsequent re-provision reuses the same state.
+
 ## Production readiness checklist
 
 - Slack request URLs point to production API Gateway.

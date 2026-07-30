@@ -1,7 +1,9 @@
 output "bucket_name" {
-  value = null
+  description = "Archive S3 bucket name."
+  value       = aws_s3_bucket.archive.bucket
 }
 
 output "bucket_arn" {
-  value = null
+  description = "Archive S3 bucket ARN."
+  value       = aws_s3_bucket.archive.arn
 }

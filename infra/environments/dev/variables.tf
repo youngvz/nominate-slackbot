@@ -42,6 +42,24 @@ variable "data_classification" {
   default = "Internal"
 }
 
+variable "enable_deletion_protection" {
+  description = "Block terraform destroy of stateful resources (DynamoDB)."
+  type        = bool
+  default     = false
+}
+
+variable "force_destroy" {
+  description = "Allow terraform destroy of a non-empty S3 archive bucket."
+  type        = bool
+  default     = true
+}
+
+variable "log_retention_days" {
+  description = "CloudWatch log retention for Lambda log groups."
+  type        = number
+  default     = 7
+}
+
 locals {
   tags = {
     Project            = var.project

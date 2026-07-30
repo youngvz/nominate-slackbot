@@ -17,6 +17,7 @@
     "prepare": "husky",
     "dev": "pnpm -r --parallel --stream dev",
     "infra:validate": "bash scripts/infra-validate.sh",
+    "infra:destroy": "bash scripts/infra-destroy.sh",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

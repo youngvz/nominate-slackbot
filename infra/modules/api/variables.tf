@@ -4,12 +4,17 @@ variable "project" {
 }
 
 variable "environment" {
-  description = "Environment name (dev | staging | production)."
+  description = "Environment name (dev | production)."
   type        = string
 }
 
 variable "ingress_lambda_invoke_arn" {
-  description = "Invoke ARN of the Slack ingress Lambda."
+  description = "Invoke ARN of the Slack ingress Lambda (from module.compute)."
+  type        = string
+}
+
+variable "ingress_lambda_function_arn" {
+  description = "Function ARN of the Slack ingress Lambda (used to scope the API GW invoke permission)."
   type        = string
 }
 
