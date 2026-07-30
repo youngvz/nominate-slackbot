@@ -5,6 +5,11 @@ import { createSlackClient, type SlackClient, type SlashCommandPayload } from "@
 import type { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 import { verifyRequest } from "./middleware/verifySignature.js";
 import { handleSlashCommand } from "./routes/slashCommand.js";
+import { handleViewSubmission, type ViewSubmissionContext } from "./routes/viewSubmission.js";
+import {
+  createPublisherFromEnv,
+  type NominationPublisher,
+} from "./queue/publisher.js";
 
 // Entry point for the API Gateway HTTP API. docs/04 §Slack ingress Lambda:
 // preserve the raw body, verify signature, acknowledge within Slack's trigger
@@ -12,9 +17,11 @@ import { handleSlashCommand } from "./routes/slashCommand.js";
 
 interface Deps {
   slackClient: SlackClient;
+  publisher: NominationPublisher;
   signingSecret: string;
   logger: Logger;
   now: () => number;
+  nowIso: () => string;
 }
 
 let cachedDeps: Deps | undefined;
@@ -30,14 +37,21 @@ async function getDeps(): Promise<Deps> {
   if (!botToken) {
     throw new Error("SLACK_BOT_TOKEN must be resolved before handling requests");
   }
+  const logger = createLogger({
+    service: env.SERVICE_NAME,
+    environment: env.NODE_ENV,
+  });
   cachedDeps = {
     slackClient: createSlackClient(botToken),
-    signingSecret,
-    logger: createLogger({
-      service: env.SERVICE_NAME,
-      environment: env.NODE_ENV,
+    publisher: createPublisherFromEnv({
+      queueUrl: env.NOMINATION_QUEUE_URL,
+      region: env.AWS_REGION,
+      logger,
     }),
+    signingSecret,
+    logger,
     now: () => Math.floor(Date.now() / 1000),
+    nowIso: () => new Date().toISOString(),
   };
   return cachedDeps;
 }
@@ -71,13 +85,7 @@ export async function handleRequest(
     const params = new URLSearchParams(rawBody);
     const payloadJson = params.get("payload");
     if (payloadJson) {
-      // view_submission and block_actions arrive as a JSON `payload` field.
-      // Deferred to a later slice.
-      log.info("slack_interaction_ignored", {
-        outcome: "not_implemented",
-        eventType: "interactive_payload",
-      });
-      return { statusCode: 200, body: "" };
+      return handleInteractivePayload(payloadJson, correlationId, deps, log);
     }
 
     const slashCommand = parseSlashCommand(params);
@@ -111,6 +119,72 @@ export async function handleRequest(
     contentType,
   });
   return { statusCode: 200, body: "" };
+}
+
+async function handleInteractivePayload(
+  payloadJson: string,
+  correlationId: string,
+  deps: Deps,
+  log: Logger,
+): Promise<APIGatewayProxyStructuredResultV2> {
+  let payload: InteractivePayload;
+  try {
+    payload = JSON.parse(payloadJson) as InteractivePayload;
+  } catch {
+    log.warn("interactive_payload_parse_failed", {
+      outcome: "rejected",
+      errorCategory: "MALFORMED_JSON",
+    });
+    return { statusCode: 400, body: "" };
+  }
+
+  if (payload.type !== "view_submission") {
+    log.info("slack_interaction_ignored", {
+      outcome: "not_implemented",
+      eventType: payload.type ?? "unknown",
+    });
+    return { statusCode: 200, body: "" };
+  }
+
+  const workspaceId = payload.team?.id ?? payload.user?.team_id ?? "";
+  const nominatorSlackId = payload.user?.id ?? "";
+  const viewId = payload.view?.id ?? "";
+  if (!workspaceId || !nominatorSlackId || !viewId) {
+    log.warn("view_submission_context_missing", {
+      outcome: "rejected",
+      errorCategory: "MALFORMED_PAYLOAD",
+    });
+    return { statusCode: 400, body: "" };
+  }
+
+  const ctx: ViewSubmissionContext = {
+    nominatorSlackId,
+    workspaceId,
+    viewId,
+    correlationId,
+    submittedAtIso: deps.nowIso(),
+  };
+
+  const result = await handleViewSubmission(payload.view, ctx, {
+    publisher: deps.publisher,
+    logger: deps.logger,
+  });
+
+  if (result.kind === "errors") {
+    return {
+      statusCode: 200,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ response_action: "errors", errors: result.errors }),
+    };
+  }
+  return { statusCode: 200, body: "" };
+}
+
+interface InteractivePayload {
+  type?: string;
+  team?: { id?: string };
+  user?: { id?: string; team_id?: string };
+  view?: { id?: string; callback_id?: string; state?: unknown };
 }
 
 export const handler = async (

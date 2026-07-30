@@ -1,6 +1,7 @@
 export * from "./signature/verifier.js";
 export * from "./client/SlackClient.js";
 export * from "./blocks/nominateModal.js";
+export * from "./blocks/nominateModalParser.js";
 export * from "./blocks/reminderMessage.js";
 export * from "./blocks/reportMessage.js";
 export * from "./blocks/winnerDm.js";

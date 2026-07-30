@@ -1,9 +1,17 @@
 import { createHmac } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
-import { NOMINATE_CALLBACK_ID, type SlackClient } from "@nominate/slack";
+import {
+  NOMINATE_CALLBACK_ID,
+  NOMINATE_DESCRIPTION_ACTION_ID,
+  NOMINATE_DESCRIPTION_BLOCK_ID,
+  NOMINATE_RECIPIENT_ACTION_ID,
+  NOMINATE_RECIPIENT_BLOCK_ID,
+  type SlackClient,
+} from "@nominate/slack";
 import { createLogger } from "@nominate/observability";
 import type { APIGatewayProxyEventV2 } from "aws-lambda";
 import { handleRequest } from "../index.js";
+import type { NominationPublisher } from "../queue/publisher.js";
 
 const SECRET = "test-signing-secret";
 
@@ -19,6 +27,48 @@ function slashCommandBody(overrides: Record<string, string> = {}): string {
     response_url: "https://hooks.slack.example/response/xyz",
   };
   return new URLSearchParams({ ...defaults, ...overrides }).toString();
+}
+
+function viewSubmissionBody(opts: {
+  nominatorId?: string;
+  recipientId?: string | null;
+  description?: string | null;
+  teamId?: string;
+  viewId?: string;
+}): string {
+  const {
+    nominatorId = "U_NOMINATOR",
+    recipientId = "U_RECIPIENT",
+    description = "Great work leading the migration.",
+    teamId = "T_TEAM",
+    viewId = "V_VIEW",
+  } = opts;
+  const payload = {
+    type: "view_submission",
+    team: { id: teamId },
+    user: { id: nominatorId },
+    view: {
+      id: viewId,
+      callback_id: NOMINATE_CALLBACK_ID,
+      state: {
+        values: {
+          [NOMINATE_RECIPIENT_BLOCK_ID]:
+            recipientId === null
+              ? {}
+              : {
+                  [NOMINATE_RECIPIENT_ACTION_ID]: { selected_user: recipientId },
+                },
+          [NOMINATE_DESCRIPTION_BLOCK_ID]:
+            description === null
+              ? {}
+              : {
+                  [NOMINATE_DESCRIPTION_ACTION_ID]: { value: description },
+                },
+        },
+      },
+    },
+  };
+  return new URLSearchParams({ payload: JSON.stringify(payload) }).toString();
 }
 
 function sign(timestamp: number, body: string, secret = SECRET): string {
@@ -67,17 +117,22 @@ function makeDeps(overrides: Partial<Record<string, unknown>> = {}) {
     openDm: vi.fn(),
     getUser: vi.fn(),
   };
+  const publish = vi.fn().mockResolvedValue({ messageId: "msg-1" });
+  const publisher: NominationPublisher = { publish };
   return {
     slackClient,
     openView,
+    publisher,
+    publish,
     signingSecret: SECRET,
     logger: createLogger({ service: "test", environment: "test" }),
     now: () => 1_800_000_000,
+    nowIso: () => "2026-08-01T12:00:00.000Z",
     ...overrides,
   };
 }
 
-describe("slack-ingress handler", () => {
+describe("slack-ingress handler — slash command", () => {
   it("acks 200 and opens the nominate modal on a valid /nominate slash command", async () => {
     const deps = makeDeps();
     const body = slashCommandBody();
@@ -119,16 +174,102 @@ describe("slack-ingress handler", () => {
     expect(response.statusCode).toBe(400);
     expect(deps.openView).not.toHaveBeenCalled();
   });
+});
 
-  it("acks and defers interactive payload handling in this slice", async () => {
+describe("slack-ingress handler — view_submission", () => {
+  it("publishes NominationSubmissionRequestedV1 and closes the modal on a valid submission", async () => {
     const deps = makeDeps();
-    const body = new URLSearchParams({ payload: '{"type":"view_submission"}' }).toString();
+    const body = viewSubmissionBody({});
     const timestamp = deps.now();
     const event = buildEvent(body, timestamp, sign(timestamp, body));
 
     const response = await handleRequest(event, deps);
 
     expect(response.statusCode).toBe(200);
-    expect(deps.openView).not.toHaveBeenCalled();
+    expect(response.body).toBe("");
+    expect(deps.publish).toHaveBeenCalledTimes(1);
+    const publishedEvent = deps.publish.mock.calls[0]![0];
+    expect(publishedEvent.eventType).toBe("nomination.submission.requested");
+    expect(publishedEvent.schemaVersion).toBe(1);
+    expect(publishedEvent.workspaceId).toBe("T_TEAM");
+    expect(publishedEvent.nominatorSlackId).toBe("U_NOMINATOR");
+    expect(publishedEvent.recipientSlackId).toBe("U_RECIPIENT");
+    expect(publishedEvent.description).toBe("Great work leading the migration.");
+    expect(publishedEvent.idempotencyKey).toBe("T_TEAM:V_VIEW");
+    expect(publishedEvent.responseContext.submittedAt).toBe("2026-08-01T12:00:00.000Z");
+  });
+
+  it("rejects a self-nomination with a modal error and does not publish", async () => {
+    const deps = makeDeps();
+    const body = viewSubmissionBody({
+      nominatorId: "U_SAME",
+      recipientId: "U_SAME",
+    });
+    const timestamp = deps.now();
+    const event = buildEvent(body, timestamp, sign(timestamp, body));
+
+    const response = await handleRequest(event, deps);
+
+    expect(response.statusCode).toBe(200);
+    const parsed = JSON.parse(response.body ?? "{}");
+    expect(parsed.response_action).toBe("errors");
+    expect(parsed.errors[NOMINATE_RECIPIENT_BLOCK_ID]).toMatch(/yourself/i);
+    expect(deps.publish).not.toHaveBeenCalled();
+  });
+
+  it("rejects a too-short description with a modal error and does not publish", async () => {
+    const deps = makeDeps();
+    const body = viewSubmissionBody({ description: "short" });
+    const timestamp = deps.now();
+    const event = buildEvent(body, timestamp, sign(timestamp, body));
+
+    const response = await handleRequest(event, deps);
+
+    expect(response.statusCode).toBe(200);
+    const parsed = JSON.parse(response.body ?? "{}");
+    expect(parsed.response_action).toBe("errors");
+    expect(parsed.errors[NOMINATE_DESCRIPTION_BLOCK_ID]).toMatch(/short|minimum/i);
+    expect(deps.publish).not.toHaveBeenCalled();
+  });
+
+  it("rejects a missing recipient with a modal error under the recipient block", async () => {
+    const deps = makeDeps();
+    const body = viewSubmissionBody({ recipientId: null });
+    const timestamp = deps.now();
+    const event = buildEvent(body, timestamp, sign(timestamp, body));
+
+    const response = await handleRequest(event, deps);
+
+    expect(response.statusCode).toBe(200);
+    const parsed = JSON.parse(response.body ?? "{}");
+    expect(parsed.response_action).toBe("errors");
+    expect(parsed.errors[NOMINATE_RECIPIENT_BLOCK_ID]).toBeTruthy();
+    expect(deps.publish).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when the interactive payload JSON is malformed", async () => {
+    const deps = makeDeps();
+    const body = new URLSearchParams({ payload: "{not-json" }).toString();
+    const timestamp = deps.now();
+    const event = buildEvent(body, timestamp, sign(timestamp, body));
+
+    const response = await handleRequest(event, deps);
+
+    expect(response.statusCode).toBe(400);
+    expect(deps.publish).not.toHaveBeenCalled();
+  });
+
+  it("ignores non-view_submission interactive payloads (e.g. block_actions)", async () => {
+    const deps = makeDeps();
+    const payload = new URLSearchParams({
+      payload: JSON.stringify({ type: "block_actions" }),
+    }).toString();
+    const timestamp = deps.now();
+    const event = buildEvent(payload, timestamp, sign(timestamp, payload));
+
+    const response = await handleRequest(event, deps);
+
+    expect(response.statusCode).toBe(200);
+    expect(deps.publish).not.toHaveBeenCalled();
   });
 });
