@@ -1,0 +1,40 @@
+{
+  "_metadata": {
+    "major_version": 2,
+    "minor_version": 1
+  },
+  "display_information": {
+    "name": "Nominate (dev)",
+    "description": "Employee recognition bot — development app.",
+    "background_color": "#2c3e50"
+  },
+  "features": {
+    "bot_user": {
+      "display_name": "nominate",
+      "always_online": false
+    },
+    "slash_commands": [
+      {
+        "command": "/nominate",
+        "url": "https://REPLACE_ME.example/slack/events",
+        "description": "Recognize a coworker.",
+        "usage_hint": "opens the nomination form",
+        "should_escape": false
+      }
+    ]
+  },
+  "oauth_config": {
+    "scopes": {
+      "bot": ["commands", "chat:write", "users:read"]
+    }
+  },
+  "settings": {
+    "interactivity": {
+      "is_enabled": true,
+      "request_url": "https://REPLACE_ME.example/slack/events"
+    },
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": false,
+    "token_rotation_enabled": false
+  }
+}

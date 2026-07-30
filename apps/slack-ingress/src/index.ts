@@ -1,9 +1,164 @@
-import { NotImplementedError } from "@nominate/observability";
-import type { APIGatewayProxyHandlerV2 } from "aws-lambda";
+import { randomUUID } from "node:crypto";
+import { loadEnv } from "@nominate/configuration";
+import { createLogger, type Logger } from "@nominate/observability";
+import { createSlackClient, type SlackClient, type SlashCommandPayload } from "@nominate/slack";
+import type { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2 } from "aws-lambda";
+import { verifyRequest } from "./middleware/verifySignature.js";
+import { handleSlashCommand } from "./routes/slashCommand.js";
 
 // Entry point for the API Gateway HTTP API. docs/04 §Slack ingress Lambda:
 // preserve the raw body, verify signature, acknowledge within Slack's trigger
 // deadline, avoid slow calls on the ack path.
-export const handler: APIGatewayProxyHandlerV2 = async (_event) => {
-  throw new NotImplementedError("slack-ingress handler");
+
+interface Deps {
+  slackClient: SlackClient;
+  signingSecret: string;
+  logger: Logger;
+  now: () => number;
+}
+
+let cachedDeps: Deps | undefined;
+
+async function getDeps(): Promise<Deps> {
+  if (cachedDeps) return cachedDeps;
+  const env = loadEnv();
+  const signingSecret = env.SLACK_SIGNING_SECRET;
+  const botToken = env.SLACK_BOT_TOKEN;
+  if (!signingSecret) {
+    throw new Error("SLACK_SIGNING_SECRET must be resolved before handling requests");
+  }
+  if (!botToken) {
+    throw new Error("SLACK_BOT_TOKEN must be resolved before handling requests");
+  }
+  cachedDeps = {
+    slackClient: createSlackClient(botToken),
+    signingSecret,
+    logger: createLogger({
+      service: env.SERVICE_NAME,
+      environment: env.NODE_ENV,
+    }),
+    now: () => Math.floor(Date.now() / 1000),
+  };
+  return cachedDeps;
+}
+
+export async function handleRequest(
+  event: APIGatewayProxyEventV2,
+  deps: Deps,
+): Promise<APIGatewayProxyStructuredResultV2> {
+  const correlationId = randomUUID();
+  const log = deps.logger.child({ correlationId });
+
+  const rawBody = extractRawBody(event);
+  const headers = normalizeHeaders(event.headers);
+
+  const verification = verifyRequest({
+    rawBody,
+    headers,
+    signingSecret: deps.signingSecret,
+    nowSeconds: deps.now(),
+  });
+  if (!verification.ok) {
+    log.warn("slack_signature_rejected", {
+      outcome: "rejected",
+      errorCategory: verification.reason,
+    });
+    return { statusCode: verification.statusCode, body: "" };
+  }
+
+  const contentType = headers["content-type"] ?? "";
+  if (contentType.includes("application/x-www-form-urlencoded")) {
+    const params = new URLSearchParams(rawBody);
+    const payloadJson = params.get("payload");
+    if (payloadJson) {
+      // view_submission and block_actions arrive as a JSON `payload` field.
+      // Deferred to a later slice.
+      log.info("slack_interaction_ignored", {
+        outcome: "not_implemented",
+        eventType: "interactive_payload",
+      });
+      return { statusCode: 200, body: "" };
+    }
+
+    const slashCommand = parseSlashCommand(params);
+    if (slashCommand) {
+      log.info("slash_command_received", {
+        eventType: "slash_command",
+        workspaceId: slashCommand.teamId,
+        command: slashCommand.command,
+      });
+      try {
+        await handleSlashCommand(slashCommand, deps.slackClient);
+        log.info("slash_command_handled", {
+          eventType: "slash_command",
+          outcome: "modal_opened",
+          workspaceId: slashCommand.teamId,
+        });
+      } catch (err) {
+        log.error("slash_command_failed", {
+          eventType: "slash_command",
+          outcome: "error",
+          workspaceId: slashCommand.teamId,
+          errorCategory: err instanceof Error ? err.name : "unknown",
+        });
+      }
+      return { statusCode: 200, body: "" };
+    }
+  }
+
+  log.info("slack_request_unhandled", {
+    outcome: "not_implemented",
+    contentType,
+  });
+  return { statusCode: 200, body: "" };
+}
+
+export const handler = async (
+  event: APIGatewayProxyEventV2,
+): Promise<APIGatewayProxyStructuredResultV2> => {
+  const deps = await getDeps();
+  return handleRequest(event, deps);
 };
+
+function extractRawBody(event: APIGatewayProxyEventV2): string {
+  if (event.body === undefined) return "";
+  if (event.isBase64Encoded) {
+    return Buffer.from(event.body, "base64").toString("utf8");
+  }
+  return event.body;
+}
+
+function normalizeHeaders(
+  headers: APIGatewayProxyEventV2["headers"],
+): Record<string, string | undefined> {
+  const out: Record<string, string | undefined> = {};
+  if (!headers) return out;
+  for (const [key, value] of Object.entries(headers)) {
+    out[key.toLowerCase()] = value;
+  }
+  return out;
+}
+
+function parseSlashCommand(params: URLSearchParams): SlashCommandPayload | undefined {
+  const command = params.get("command");
+  const teamId = params.get("team_id");
+  const userId = params.get("user_id");
+  const triggerId = params.get("trigger_id");
+  const responseUrl = params.get("response_url");
+  if (!command || !teamId || !userId || !triggerId || !responseUrl) {
+    return undefined;
+  }
+  const channelId = params.get("channel_id") ?? undefined;
+  return {
+    type: "slash_command",
+    command,
+    teamId,
+    userId,
+    triggerId,
+    responseUrl,
+    ...(channelId ? { channelId } : {}),
+  };
+}
+
+// Exposed for tests.
+export const __internal = { extractRawBody, normalizeHeaders, parseSlashCommand };

@@ -34,6 +34,10 @@ crash.*.log
 *.p12
 *.pfx
 
+# Slack CLI project state — created by `slack init`. Contains machine-local
+# app IDs and per-user hooks. See docs/17-slack-app-setup.md §Path A.
+.slack/
+
 .DS_Store
 .idea
 .vscode

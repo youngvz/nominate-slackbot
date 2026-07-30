@@ -39,7 +39,8 @@ Read only the files relevant to the current task, plus any directly linked depen
 | Reminders, report windows, winner DMs, retries | `docs/10-scheduling-and-reporting.md` | `docs/02-business-rules.md` |
 | Logging, metrics, alarms, support procedures | `docs/11-observability-and-operations.md` | `docs/14-deployment-and-environments.md` |
 | Tests or definition of done | `docs/12-testing-strategy.md` | the scope document for the feature |
-| Local setup and developer commands | `docs/13-local-development.md` | `docs/03-slack-app-design.md` |
+| Local setup and developer commands | `docs/13-local-development.md` | `docs/03-slack-app-design.md`, `docs/17-slack-app-setup.md` |
+| Slack app registration, manifest, install procedure | `docs/17-slack-app-setup.md` | `slack/manifest.json`, `docs/03-slack-app-design.md` |
 | CI/CD, releases, rollback, environments | `docs/14-deployment-and-environments.md` | `docs/08-terraform-standards.md` |
 | Deferred features or future improvements | `docs/15-future-state-backlog.md` | relevant ADR or scope file |
 | Why a major architecture choice was made | `docs/adr/` | `docs/16-decision-register.md` |
