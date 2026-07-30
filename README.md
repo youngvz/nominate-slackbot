@@ -6,15 +6,15 @@ Authoritative behavior lives under [`docs/`](docs/) — start with [`CLAUDE.md`]
 
 ## Getting started
 
-### Prerequisites
+Install every prerequisite tool (Node, pnpm, Slack CLI, tunnel, and the
+optional AWS/Docker/Terraform bits) by working through
+[`docs/00-dependencies.md`](docs/00-dependencies.md). That doc is the single
+source of truth for what needs to be on your machine before writing or
+running code.
 
-- **Node.js** — version pinned in [`.nvmrc`](.nvmrc) (currently 20). `nvm use` picks it up.
-- **pnpm** — version pinned in `package.json` `packageManager` (currently 9.12.0). Install via `corepack enable && corepack prepare pnpm@9.12.0 --activate`, or `npm i -g pnpm`.
-- **Terraform** ≥ 1.10 for `infra/` changes.
-- **AWS CLI** configured with credentials for the target environment when touching infrastructure.
-- **Docker** for local DynamoDB and any container-based tooling.
-
-See [`docs/13-local-development.md`](docs/13-local-development.md) for Slack app setup and environment variables.
+Once dependencies are in place, install the Slack app into your workspace
+per [`docs/18-slack-app-setup.md`](docs/18-slack-app-setup.md), then come
+back here for everyday commands.
 
 ### Install
 

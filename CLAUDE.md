@@ -27,6 +27,7 @@ Read only the files relevant to the current task, plus any directly linked depen
 
 | Task or conversation context | Read first | Also read when relevant |
 |---|---|---|
+| Dependencies, machine setup, first-time install | `docs/00-dependencies.md` | `docs/18-slack-app-setup.md`, `README.md` |
 | Product scope, user journeys, acceptance criteria | `docs/01-product-requirements.md` | `docs/02-business-rules.md` |
 | Eligibility, nomination limits, winners, descriptions | `docs/02-business-rules.md` | `docs/05-dynamodb-data-model.md` |
 | Slack command, modal, user selection, messages, permissions | `docs/03-slack-app-design.md` | `docs/06-event-contracts.md`, `docs/09-security-privacy-audit.md` |
@@ -39,7 +40,8 @@ Read only the files relevant to the current task, plus any directly linked depen
 | Reminders, report windows, winner DMs, retries | `docs/10-scheduling-and-reporting.md` | `docs/02-business-rules.md` |
 | Logging, metrics, alarms, support procedures | `docs/11-observability-and-operations.md` | `docs/14-deployment-and-environments.md` |
 | Tests or definition of done | `docs/12-testing-strategy.md` | the scope document for the feature |
-| Local setup and developer commands | `docs/13-local-development.md` | `docs/03-slack-app-design.md` |
+| Local setup and developer commands | `docs/13-local-development.md` | `docs/03-slack-app-design.md`, `docs/18-slack-app-setup.md` |
+| Slack app registration, manifest, install procedure | `docs/18-slack-app-setup.md` | `slack/manifest.json`, `docs/03-slack-app-design.md` |
 | CI/CD, releases, rollback, environments | `docs/14-deployment-and-environments.md` | `docs/08-terraform-standards.md` |
 | Deferred features or future improvements | `docs/15-future-state-backlog.md` | relevant ADR or scope file |
 | Why a major architecture choice was made | `docs/adr/` | `docs/16-decision-register.md` |

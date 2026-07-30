@@ -1,8 +1,6 @@
-import { NotImplementedError } from "./errors.js";
-
 export interface LogFields {
-  service: string;
-  environment: string;
+  service?: string;
+  environment?: string;
   correlationId?: string;
   workspaceId?: string;
   eventType?: string;
@@ -34,6 +32,37 @@ export const REDACTED_KEYS: readonly string[] = [
   "profile",
 ];
 
-export function createLogger(_base: LogFields): Logger {
-  throw new NotImplementedError("createLogger");
+type Level = "debug" | "info" | "warn" | "error";
+
+function redact(fields: LogFields | undefined): Record<string, unknown> {
+  if (!fields) return {};
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(fields)) {
+    if (REDACTED_KEYS.includes(key)) continue;
+    if (value === undefined) continue;
+    out[key] = value;
+  }
+  return out;
+}
+
+function emit(level: Level, base: LogFields, msg: string, fields: LogFields | undefined): void {
+  const record = {
+    level,
+    msg,
+    ...redact(base),
+    ...redact(fields),
+  };
+  const stream = level === "error" || level === "warn" ? process.stderr : process.stdout;
+  stream.write(`${JSON.stringify(record)}\n`);
+}
+
+export function createLogger(base: LogFields): Logger {
+  const bound: LogFields = { ...base };
+  return {
+    debug: (msg, fields) => emit("debug", bound, msg, fields),
+    info: (msg, fields) => emit("info", bound, msg, fields),
+    warn: (msg, fields) => emit("warn", bound, msg, fields),
+    error: (msg, fields) => emit("error", bound, msg, fields),
+    child: (bindings) => createLogger({ ...bound, ...bindings }),
+  };
 }

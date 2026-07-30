@@ -9,7 +9,7 @@
     "typecheck": "tsc -b --noEmit",
     "lint": "eslint src",
     "test": "vitest run",
-    "dev": "echo 'slack-ingress dev entry TBD'"
+    "dev": "tsx watch src/dev.ts"
   },
   "dependencies": {
     "@nominate/configuration": "workspace:*",
