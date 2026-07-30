@@ -1,6 +1,11 @@
 import type { GetSecretValueCommand } from "@aws-sdk/client-secrets-manager";
 import { describe, expect, it, vi } from "vitest";
-import { createSecretsProvider, resolveSlackSecrets, type SecretsClient } from "../secrets.js";
+import {
+  createSecretsProvider,
+  resolveBotToken,
+  resolveSigningSecret,
+  type SecretsClient,
+} from "../secrets.js";
 
 function stubClient(map: Record<string, string | undefined>): SecretsClient {
   return {
@@ -36,7 +41,6 @@ describe("createSecretsProvider", () => {
     expect(sig2).toBe("signing-value");
     expect(bot1).toBe("xoxb-value");
     expect(bot2).toBe("xoxb-value");
-    // Each ARN fetched exactly once even under concurrent access.
     expect(client.send).toHaveBeenCalledTimes(2);
   });
 
@@ -53,39 +57,52 @@ describe("createSecretsProvider", () => {
   });
 });
 
-describe("resolveSlackSecrets", () => {
-  const baseEnv = {
-    NODE_ENV: "production" as const,
-    SERVICE_NAME: "slack-ingress",
-    AWS_REGION: "us-east-1",
-    SLACK_RECOGNITION_CHANNEL_ID: "C1",
-    SLACK_MAINTAINER_IDS: ["U1"] as const,
-    PROGRAM_TIMEZONE: "America/New_York",
-    PROGRAM_START_AT: "2026-07-31T00:00:00-04:00",
-    DYNAMODB_TABLE_NAME: "app",
-    NOMINATION_QUEUE_URL: "https://sqs/example",
-  };
+const baseEnv = {
+  NODE_ENV: "production" as const,
+  SERVICE_NAME: "slack-ingress",
+  AWS_REGION: "us-east-1",
+  SLACK_RECOGNITION_CHANNEL_ID: "C1",
+  SLACK_MAINTAINER_IDS: ["U1"] as const,
+  PROGRAM_TIMEZONE: "America/New_York",
+  PROGRAM_START_AT: "2026-07-31T00:00:00-04:00",
+  DYNAMODB_TABLE_NAME: "app",
+  NOMINATION_QUEUE_URL: "https://sqs/example",
+};
 
-  it("returns plaintext env vars directly and skips Secrets Manager", async () => {
+describe("resolveSigningSecret / resolveBotToken", () => {
+  it("prefers inline env vars over Secrets Manager", async () => {
     const client = stubClient({});
-    const result = await resolveSlackSecrets(
-      {
-        ...baseEnv,
-        SLACK_SIGNING_SECRET: "inline-sig",
-        SLACK_BOT_TOKEN: "inline-bot",
-      },
+    const sig = await resolveSigningSecret(
+      { ...baseEnv, SLACK_SIGNING_SECRET: "inline-sig" },
       client,
     );
-    expect(result).toEqual({ signingSecret: "inline-sig", botToken: "inline-bot" });
+    const bot = await resolveBotToken(
+      { ...baseEnv, SLACK_BOT_TOKEN: "inline-bot" },
+      client,
+    );
+    expect(sig).toBe("inline-sig");
+    expect(bot).toBe("inline-bot");
     expect(client.send).not.toHaveBeenCalled();
   });
 
-  it("fetches from Secrets Manager when only ARNs are set", async () => {
-    const client = stubClient({
-      "arn:sig": "sm-sig",
-      "arn:bot": "sm-bot",
-    });
-    const result = await resolveSlackSecrets(
+  it("fetches from Secrets Manager when only ARN is set", async () => {
+    const client = stubClient({ "arn:sig": "sm-sig", "arn:bot": "sm-bot" });
+    const sig = await resolveSigningSecret(
+      { ...baseEnv, SLACK_SIGNING_SECRET_ARN: "arn:sig" },
+      client,
+    );
+    const bot = await resolveBotToken(
+      { ...baseEnv, SLACK_BOT_TOKEN_ARN: "arn:bot" },
+      client,
+    );
+    expect(sig).toBe("sm-sig");
+    expect(bot).toBe("sm-bot");
+    expect(client.send).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not fetch the other secret when only one is requested", async () => {
+    const client = stubClient({ "arn:sig": "sm-sig", "arn:bot": "sm-bot" });
+    await resolveBotToken(
       {
         ...baseEnv,
         SLACK_SIGNING_SECRET_ARN: "arn:sig",
@@ -93,14 +110,19 @@ describe("resolveSlackSecrets", () => {
       },
       client,
     );
-    expect(result).toEqual({ signingSecret: "sm-sig", botToken: "sm-bot" });
-    expect(client.send).toHaveBeenCalledTimes(2);
+    // The worker/reminder/report roles are only allowed to read the bot token
+    // per docs/07 §IAM boundaries. Fetching the signing secret would 403.
+    expect(client.send).toHaveBeenCalledTimes(1);
+    const sentCommand = (client.send as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as
+      | GetSecretValueCommand
+      | undefined;
+    expect(sentCommand?.input.SecretId).toBe("arn:bot");
   });
 
   it("throws when neither plaintext nor ARN is available", async () => {
     const client = stubClient({});
-    await expect(resolveSlackSecrets({ ...baseEnv }, client)).rejects.toThrow(
-      /neither plaintext env vars nor Secrets Manager ARNs/,
+    await expect(resolveSigningSecret({ ...baseEnv }, client)).rejects.toThrow(
+      /neither plaintext env var nor ARN/,
     );
   });
 });

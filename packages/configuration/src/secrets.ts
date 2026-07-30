@@ -56,37 +56,48 @@ async function fetch(
   return value;
 }
 
-// Resolves Slack signing secret + bot token, preferring plaintext env vars
-// (local development) and falling back to Secrets Manager (AWS Lambda). Each
-// app's cold-start getDeps calls this once and caches the result.
-export interface ResolvedSlackSecrets {
-  signingSecret: string;
-  botToken: string;
-}
+// Individually-lazy secret resolvers. Each Lambda's IAM role only grants read
+// access to the secrets it actually needs (docs/07 §IAM boundaries), so
+// fetching secrets it doesn't consume would fail with AccessDeniedException.
+// A resolver only touches Secrets Manager for its own ARN.
 
-export async function resolveSlackSecrets(
+async function resolveOne(
   env: AppEnv,
+  which: "signing" | "bot",
   clientOverride?: SecretsClient,
-): Promise<ResolvedSlackSecrets> {
-  const inlineSigning = env.SLACK_SIGNING_SECRET;
-  const inlineBot = env.SLACK_BOT_TOKEN;
-  if (inlineSigning && inlineBot) {
-    return { signingSecret: inlineSigning, botToken: inlineBot };
-  }
-  if (!env.SLACK_SIGNING_SECRET_ARN || !env.SLACK_BOT_TOKEN_ARN) {
+): Promise<string> {
+  const inline = which === "signing" ? env.SLACK_SIGNING_SECRET : env.SLACK_BOT_TOKEN;
+  if (inline) return inline;
+
+  const arn = which === "signing" ? env.SLACK_SIGNING_SECRET_ARN : env.SLACK_BOT_TOKEN_ARN;
+  if (!arn) {
+    const label = which === "signing" ? "signing secret" : "bot token";
     throw new Error(
-      "resolveSlackSecrets: neither plaintext env vars nor Secrets Manager ARNs are set",
+      `resolveSlackSecret: neither plaintext env var nor ARN is set for the Slack ${label}`,
     );
   }
-  const provider = createSecretsProvider({
-    signingSecretArn: env.SLACK_SIGNING_SECRET_ARN,
-    botTokenArn: env.SLACK_BOT_TOKEN_ARN,
-    region: env.AWS_REGION,
-    ...(clientOverride ? { client: clientOverride } : {}),
-  });
-  const [signingSecret, botToken] = await Promise.all([
-    inlineSigning ?? provider.getSlackSigningSecret(),
-    inlineBot ?? provider.getSlackBotToken(),
-  ]);
-  return { signingSecret, botToken };
+
+  const client = clientOverride ?? new SecretsManagerClient({ region: env.AWS_REGION });
+  const result = await client.send(new GetSecretValueCommand({ SecretId: arn }));
+  const value = result.SecretString;
+  if (!value) {
+    throw new Error(
+      `Secrets Manager returned no SecretString for the Slack ${which === "signing" ? "signing secret" : "bot token"}`,
+    );
+  }
+  return value;
+}
+
+export function resolveSigningSecret(
+  env: AppEnv,
+  clientOverride?: SecretsClient,
+): Promise<string> {
+  return resolveOne(env, "signing", clientOverride);
+}
+
+export function resolveBotToken(
+  env: AppEnv,
+  clientOverride?: SecretsClient,
+): Promise<string> {
+  return resolveOne(env, "bot", clientOverride);
 }

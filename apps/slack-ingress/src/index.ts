@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { loadEnv, resolveSlackSecrets } from "@nominate/configuration";
+import { loadEnv, resolveBotToken, resolveSigningSecret } from "@nominate/configuration";
 import { createLogger, type Logger } from "@nominate/observability";
 import { createSlackClient, type SlackClient, type SlashCommandPayload } from "@nominate/slack";
 import type { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2 } from "aws-lambda";
@@ -29,7 +29,10 @@ let cachedDeps: Deps | undefined;
 async function getDeps(): Promise<Deps> {
   if (cachedDeps) return cachedDeps;
   const env = loadEnv();
-  const { signingSecret, botToken } = await resolveSlackSecrets(env);
+  const [signingSecret, botToken] = await Promise.all([
+    resolveSigningSecret(env),
+    resolveBotToken(env),
+  ]);
   const logger = createLogger({
     service: env.SERVICE_NAME,
     environment: env.NODE_ENV,

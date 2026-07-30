@@ -1,4 +1,4 @@
-import { loadEnv, resolveSlackSecrets } from "@nominate/configuration";
+import { loadEnv, resolveBotToken } from "@nominate/configuration";
 import type { BiweeklyReportRequestedV1 } from "@nominate/contracts";
 import { createLogger, type Logger } from "@nominate/observability";
 import {
@@ -25,7 +25,7 @@ let cachedDeps: HandlerDeps | undefined;
 async function getDeps(): Promise<HandlerDeps> {
   if (cachedDeps) return cachedDeps;
   const env = loadEnv();
-  const { botToken } = await resolveSlackSecrets(env);
+  const botToken = await resolveBotToken(env);
   const logger = createLogger({
     service: env.SERVICE_NAME,
     environment: env.NODE_ENV,
