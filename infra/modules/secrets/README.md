@@ -11,6 +11,7 @@ The module provisions containers and IAM only. Secret values are populated out o
 | `project` | string | — | Project prefix. |
 | `environment` | string | — | Environment name (`dev`, `production`). |
 | `kms_key_arn` | string | `""` | Optional customer KMS key ARN. Empty string uses the AWS-managed key. |
+| `recovery_window_in_days` | number | `30` | Soft-delete window. Set to `0` in dev so teardowns don't block a re-apply for a month; keep the default in production. |
 | `tags` | map(string) | `{}` | Required tags per `docs/08` §Required tags. |
 
 ## Outputs

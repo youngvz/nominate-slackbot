@@ -8,10 +8,11 @@ provider "aws" {
 # Composition of reusable modules per docs/08 §Repository structure.
 
 module "secrets" {
-  source      = "../../modules/secrets"
-  project     = var.project
-  environment = var.environment
-  tags        = local.tags
+  source                  = "../../modules/secrets"
+  project                 = var.project
+  environment             = var.environment
+  recovery_window_in_days = 0
+  tags                    = local.tags
 }
 
 module "dynamodb" {
