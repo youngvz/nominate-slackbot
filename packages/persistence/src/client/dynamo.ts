@@ -1,5 +1,5 @@
-import { NotImplementedError } from "@nominate/observability";
-import type { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 
 export interface DynamoConfig {
   region: string;
@@ -10,6 +10,15 @@ export interface DynamoConfig {
 
 export const DEFAULT_GSI1_NAME = "GSI1";
 
-export function createDynamoClient(_cfg: DynamoConfig): DynamoDBDocumentClient {
-  throw new NotImplementedError("createDynamoClient");
+export function createDynamoClient(cfg: DynamoConfig): DynamoDBDocumentClient {
+  const base = new DynamoDBClient({
+    region: cfg.region,
+    ...(cfg.endpoint ? { endpoint: cfg.endpoint } : {}),
+  });
+  return DynamoDBDocumentClient.from(base, {
+    marshallOptions: {
+      removeUndefinedValues: true,
+      convertClassInstanceToMap: false,
+    },
+  });
 }

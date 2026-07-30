@@ -1,4 +1,3 @@
-import { NotImplementedError } from "@nominate/observability";
 import type { SlackUser } from "../entities/SlackUser.js";
 
 export type RecipientIneligibleReason =
@@ -13,10 +12,29 @@ export type RecipientEligibility =
   | { eligible: false; reason: RecipientIneligibleReason };
 
 // docs/02-business-rules.md §Recipient eligibility.
+// Order matters for the returned reason: workspace mismatch takes precedence,
+// then deactivation, bot/app, guest, external. The nominator argument is kept
+// to make the workspace check explicit even though the workspace id is the
+// authoritative comparison.
 export function evaluateRecipientEligibility(
   _nominator: Pick<SlackUser, "slackId" | "teamId">,
-  _recipient: SlackUser,
-  _workspaceTeamId: string,
+  recipient: SlackUser,
+  workspaceTeamId: string,
 ): RecipientEligibility {
-  throw new NotImplementedError("evaluateRecipientEligibility");
+  if (recipient.teamId !== workspaceTeamId) {
+    return { eligible: false, reason: "OTHER_WORKSPACE" };
+  }
+  if (recipient.isDeactivated) {
+    return { eligible: false, reason: "DEACTIVATED" };
+  }
+  if (recipient.isBot || recipient.isApp) {
+    return { eligible: false, reason: "BOT" };
+  }
+  if (recipient.isGuest) {
+    return { eligible: false, reason: "GUEST" };
+  }
+  if (recipient.isExternal) {
+    return { eligible: false, reason: "EXTERNAL" };
+  }
+  return { eligible: true };
 }
