@@ -13,6 +13,60 @@ Phase 1 uses Slack HTTP request URLs and `/nominate` as the primary entry point.
 
 The command should not parse recipient handles or descriptions from raw command text.
 
+### Submission sequence
+
+End-to-end flow from `/nominate` invocation through modal submission, SQS handoff, atomic write, and feedback DM. Failure branches (invalid description, repeat-window rejection) are folded in as `alt` blocks.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Employee
+    participant Slack as Slack API
+    participant APIGW as API Gateway
+    participant Ingress as slack-ingress
+    participant SQS as SQS queue
+    participant Worker as nomination-worker
+    participant DDB as DynamoDB
+
+    Employee->>Slack: /nominate
+    Slack->>APIGW: signed slash command
+    APIGW->>Ingress: POST /slack/events
+    Ingress->>Ingress: verify signature + replay window
+    Ingress-->>Slack: 200 ACK (empty body)
+    Ingress->>Slack: views.open(trigger_id, modal)
+    Slack-->>Employee: nomination modal
+
+    Employee->>Slack: submit view (recipient + description)
+    Slack->>APIGW: view_submission
+    APIGW->>Ingress: POST /slack/events
+
+    alt description invalid (length / empty)
+        Ingress-->>Slack: 200 with response_action=errors
+        Slack-->>Employee: inline modal errors
+    else valid payload
+        Ingress->>SQS: SendMessage (envelope v1)
+        Ingress-->>Slack: 200 (close modal)
+
+        SQS->>Worker: SQS event batch
+        Worker->>DDB: Get idempotency key
+        Worker->>Slack: users.info(recipient)
+        Worker->>Worker: evaluate eligibility (self / repeat window / description)
+
+        alt eligible
+            Worker->>DDB: TransactWriteItems (nomination + eligibility)
+            Worker->>Slack: postMessage ephemeral success
+        else repeat within 14 days
+            Worker->>Slack: postMessage ephemeral duplicate (with next eligible time)
+        else self / ineligible / invalid
+            Worker->>Slack: postMessage ephemeral rejection
+        end
+
+        Worker->>DDB: Put idempotency row
+    end
+```
+
+*Call sites: `apps/slack-ingress/src/routes/slashCommand.ts:10` opens the modal; `apps/slack-ingress/src/routes/viewSubmission.ts:104` publishes to SQS; `apps/nomination-worker/src/processMessage.ts:38` runs the worker path; the transaction is issued from `packages/persistence/src/repositories/NominationRepository.ts:66`.*
+
 ### Modal
 
 Required inputs:

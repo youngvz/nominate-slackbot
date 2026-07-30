@@ -4,28 +4,45 @@
 
 ```mermaid
 flowchart TD
-    User[Slack user] --> Command[/nominate]
-    Command --> APIGW[API Gateway HTTP API]
-    APIGW --> Ingress[Slack ingress Lambda]
-    Ingress --> SlackAPI[Slack Web API]
-    Ingress --> Queue[SQS nomination queue]
-    Queue --> Worker[Nomination worker Lambda]
-    Worker --> DDB[(DynamoDB)]
-    Worker --> SlackAPI
+    User([Employee]) -->|/nominate| APIGW[API Gateway HTTP API]
 
-    Scheduler[EventBridge Scheduler] --> Reminder[Reminder Lambda]
-    Scheduler --> Report[Report Lambda]
-    Reminder --> SlackAPI
-    Report --> DDB
-    Report --> SlackAPI
+    subgraph AWS[" "]
+        APIGW --> Ingress[slack-ingress Lambda]
+        Ingress -->|SendMessage| Queue[SQS nomination queue]
+        Queue --> Worker[nomination-worker Lambda]
+        Queue -. maxReceiveCount .-> DLQ[SQS DLQ]
 
-    Queue --> DLQ[SQS dead-letter queue]
-    Ingress --> Obs[CloudWatch]
-    Worker --> Obs
-    Reminder --> Obs
-    Report --> Obs
-    DDB --> Backup[S3 export / backup]
+        Scheduler[EventBridge Scheduler]
+        Scheduler -->|Fri 09:00 ET| Reminder[reminder-job Lambda]
+        Scheduler -->|biweekly Fri 12:00 ET| Report[report-job Lambda]
+
+        Worker -->|TransactWriteItems| DDB[("DynamoDB<br/>single table + GSI1")]
+        Report -->|Query GSI1| DDB
+        DDB -. planned export .-> S3[("S3 archive bucket")]
+
+        Secrets[Secrets Manager]
+        Secrets -. signing secret + bot token .-> Ingress
+        Secrets -.-> Worker
+        Secrets -.-> Reminder
+        Secrets -.-> Report
+
+        Ingress --> Logs[CloudWatch Logs + Alarms]
+        Worker --> Logs
+        Reminder --> Logs
+        Report --> Logs
+        DLQ --> Logs
+    end
+
+    Ingress -->|views.open| SlackAPI[Slack Web API]
+    Worker -->|feedback DM| SlackAPI
+    Reminder -->|chat.postMessage| SlackAPI
+    Report -->|chat.postMessage + winner DMs| SlackAPI
+
+    classDef planned stroke-dasharray: 5 5,stroke-width:1px
+    class Reminder,S3 planned
 ```
+
+*Legend: dashed borders mark planned pieces not yet implemented (`reminder-job` handler is a stub; S3 archive export path is scaffolding). Dotted arrows denote secret material fetched at cold start and the future DDB export.*
 
 ## Service responsibilities
 
