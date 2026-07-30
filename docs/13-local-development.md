@@ -29,12 +29,19 @@ Do not commit `.env`.
 
 ## Slack development setup
 
-- Create a separate development Slack app.
-- Configure `/nominate`.
-- Configure interactivity request URLs.
-- Install only required scopes.
+The Slack app configuration is checked into `slack/manifest.json`. See
+`docs/17-slack-app-setup.md` for the full setup procedure — both the Slack
+CLI path and the dashboard path are documented.
+
+Summary:
+
+- Create a separate development Slack app from `slack/manifest.json`.
+- Substitute request URLs with your local tunnel URL at install time.
+- Never commit real signing secrets, bot tokens, or tunnel URLs.
+- Install only the scopes declared in the manifest (`commands`, `chat:write`,
+  `users:read`).
 - Invite the bot to the development recognition channel.
-- Use an HTTPS tunnel for local callback testing when necessary.
+- Use an HTTPS tunnel (ngrok / Cloudflared) for local callback testing.
 
 ## Local DynamoDB
 

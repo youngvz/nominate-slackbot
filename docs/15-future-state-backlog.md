@@ -89,6 +89,23 @@ Future work for broader installation:
 - Slack Marketplace review and documentation.
 - Billing or support model if applicable.
 
+## Live eligibility integration coverage via Developer Program sandbox
+
+Phase 1 covers guest, external / Slack Connect, bot, and deactivated
+recipient rejection with unit tests that mock `users.info` responses. A
+Slack Developer Program sandbox
+(<https://docs.slack.dev/tools/developer-sandboxes/>) is an Enterprise Grid
+org that supports guests, Slack Connect (between sandboxes), and admin
+APIs — enough surface area to exercise those rejection paths against real
+Slack in an integration suite.
+
+Not required for Phase 1 shipping. Consider promoting when the domain
+service touches eligibility logic in ways unit tests can't validate
+(e.g. relying on undocumented `users.info` fields, or when a real Slack
+error surface starts mattering for user-visible messaging). See
+`docs/17-slack-app-setup.md §When to use a Developer Program sandbox` for
+the trade-off summary.
+
 ## Enhanced reporting
 
 Possible additions:
