@@ -20,8 +20,8 @@ Follow-up: EventBridge Scheduler dead-letter target is intentionally out of scop
 | `timezone` | string | `America/New_York` | Schedule timezone. |
 | `reminder_target_arn` | string | — | Reminder Lambda ARN. |
 | `report_target_arn` | string | — | Report Lambda ARN. |
-| `reminder_first_run_at` | string | `2026-08-07T09:00:00` | First-run anchor for reminder. |
-| `report_first_run_at` | string | `2026-08-14T12:00:00` | First-run anchor for report. |
+| `reminder_first_run_at` | string | `2026-08-07T09:00:00-04:00` | First-run anchor for reminder (RFC3339 with offset). |
+| `report_first_run_at` | string | `2026-08-14T12:00:00-04:00` | First-run anchor for report (RFC3339 with offset). |
 | `tags` | map(string) | `{}` | Tags. |
 
 ## Outputs
