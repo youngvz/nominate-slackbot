@@ -95,36 +95,38 @@ logged into a non-Grid workspace — log out and repeat inside the sandbox.
 
 ### 2. Initialize the Slack CLI hooks in this repo
 
-The CLI needs a `.slack/` project directory pointing at our manifest. Run
-once from the repo root:
+The CLI needs a `.slack/` project directory pointing at our manifest. We
+deliberately **skip `slack init`** and hand-write the minimal hooks —
+`slack init` would try to add a hooks-package dependency to our
+`package.json`, prompt to link an existing app, and generally assume the
+CLI also runs the app. We only use the CLI for manifest + registration.
 
-```bash
-slack init
-```
-
-`slack init` creates `.slack/config.json`, `.slack/hooks.json`, and
-`.slack/.gitignore`, and may add a Slack hooks dependency to `package.json`.
-Before proceeding, edit `.slack/hooks.json` so its `get-manifest` hook
-reads our checked-in file. Minimum viable contents for a
-registration-only workflow (we run the Lambda handler ourselves via the
-dev shim — we don't use `slack run`):
+Create `.slack/hooks.json` at the repo root:
 
 ```json
 {
   "hooks": {
-    "get-manifest": "cat slack/manifest.json"
+    "get-manifest": "sh -c 'cat slack/manifest.json' --"
   }
 }
 ```
 
-We deliberately omit `start` / `build` / `deploy` hooks — the Slack CLI is
-only used here for manifest + app-registration management, not to run the
-app. `pnpm --filter @nominate/app-slack-ingress dev` remains the local
-runtime.
+The `sh -c '…' --` wrapper is required because the CLI appends its own
+positional args (e.g. `--source=<repo-path>`) to the hook command — the
+trailing `--` sends those to the shell rather than to `cat`.
 
-Add `.slack/` to `.gitignore` if `slack init` didn't already — the
-`config.json` inside it stores your machine-local app ID and should not be
-committed.
+Also add `.slack/.gitignore` containing:
+
+```
+*
+```
+
+That plus the repo-root `.gitignore` rule for `.slack/` keeps machine-local
+state (`config.json` with your linked app ID) out of git.
+
+`start` / `build` / `deploy` hooks are intentionally omitted — the Lambda
+handler runs via `pnpm --filter @nominate/app-slack-ingress dev`, not
+`slack run`.
 
 ### 3. Validate the manifest
 
@@ -140,11 +142,18 @@ Fix any reported errors before continuing.
 slack app install
 ```
 
-Interactive prompts you should expect on a Grid / sandbox org:
+Interactive prompts you'll see on a Grid / sandbox org:
 
-- **App name / environment:** pick `local` (this is your dev app; a
-  separate `deployed` environment will exist for staging/prod later).
-- **Workspace to install to:** pick one workspace in your sandbox org.
+- **Choose an app environment:** pick `local`. This is the CLI's slot
+  label — a name for a Slack app registration inside `.slack/apps.json`.
+  It has nothing to do with which Slack workspace the app runs against
+  (that's the next prompt). Convention:
+  - `local` — the app you point at your dev tunnel URL, expected to
+    change frequently as ngrok rotates.
+  - `deployed` — for staging/prod later; points at a stable API Gateway
+    URL. You end up with two separate app registrations in the CLI, each
+    with its own signing secret and bot token.
+- **Choose a workspace:** pick one workspace inside your sandbox org.
   This is the org-workspace grant. You can add more workspaces later via
   the org admin console, or re-run `slack app install` with a different
   target.
@@ -152,24 +161,68 @@ Interactive prompts you should expect on a Grid / sandbox org:
   orgs. First install may trigger an Org Admin approval flow — approve
   it from the same Slack account if you're the org admin.
 
-On success `slack app install` links the local project to the newly
-created app. The signing secret and bot token are stored by Slack — the
-CLI does not print them. Retrieve them with:
+On success `slack app install` prints a table with `App ID`, `Team ID`,
+`User ID`, `Status`, and `Workspace Grant`. **The CLI does not print the
+signing secret or bot token** — those live in Slack's app-settings UI.
+`Status: Installed` (or similar) with a filled-in `Workspace Grant`
+means the bot is in the workspace and ready to fetch tokens.
 
-```bash
-slack app link            # shows the linked app ID
-```
+Retrieve the two secrets from the browser:
 
-Then in the browser: <https://api.slack.com/apps> → your app → **Basic
-Information** → **Signing Secret** (Show); **Install App** → **Bot User
-OAuth Token** (`xoxb-…`).
+1. Open `https://api.slack.com/apps/<App ID>` (paste the App ID from the
+   CLI output).
+2. **Basic Information** → **App Credentials** → **Signing Secret** →
+   click **Show** → copy.
+3. **Install App** (in the left sidebar under Settings) → **Bot User
+   OAuth Token** (`xoxb-…`) → copy. This is the same token that appears
+   under **OAuth & Permissions** → **OAuth Tokens**; both pages surface
+   it once the app is installed to a workspace.
 
-Put both into your local `.env`:
+Put both into your local `.env` (no leading/trailing whitespace on the
+value — the config loader trims, but keep the file clean):
 
 ```
 SLACK_SIGNING_SECRET=<signing secret>
 SLACK_BOT_TOKEN=xoxb-...
 ```
+
+Never commit `.env`. If the signing secret leaks into a chat, terminal
+paste, or PR diff, rotate it: **Basic Information** → **App
+Credentials** → **Regenerate** next to Signing Secret.
+
+### 4a. Fill in the rest of `.env`
+
+The config loader (`packages/configuration/src/env.ts`) requires every
+listed key to be present, even ones the current slice doesn't touch.
+Missing keys throw a clear error at boot. Values you should set for
+local dev:
+
+```
+AWS_REGION=us-east-1
+SLACK_SIGNING_SECRET=<from step 4>
+SLACK_BOT_TOKEN=xoxb-... (from step 4)
+SLACK_RECOGNITION_CHANNEL_ID=C000000000     # placeholder until the report job needs a real channel
+SLACK_MAINTAINER_IDS=U0BMM35KL72            # your Slack user ID (starts with U…)
+PROGRAM_TIMEZONE=America/New_York
+PROGRAM_START_AT=2026-07-31T00:00:00-04:00
+DYNAMODB_TABLE_NAME=nominate-dev-unused     # placeholder until persistence lands
+NOMINATION_QUEUE_URL=stdout://local         # logs the event instead of hitting SQS
+```
+
+Notes:
+
+- `SLACK_MAINTAINER_IDS` is a comma-separated list of Slack **user IDs**
+  (`U…`), not the org's team ID (`E…`) or workspace ID (`T…`). Copy your
+  own user ID from Slack (profile → three-dot menu → **Copy member ID**)
+  or from `slack auth list` (`User ID:` field). Multiple values look
+  like `U0BMM35KL72,U0987654321`.
+- `SLACK_RECOGNITION_CHANNEL_ID` and `DYNAMODB_TABLE_NAME` are required
+  by the loader but unused by the current slice. Placeholders are fine
+  until the report job and persistence code land.
+- `NOMINATION_QUEUE_URL=stdout://local` selects the stdout publisher for
+  local dev — the enqueued event is logged (description redacted) and a
+  synthetic message ID is returned. Change to an `https://…sqs…` URL to
+  publish to a real queue.
 
 ### 5. Start the local server and tunnel
 
