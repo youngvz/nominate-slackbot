@@ -106,6 +106,31 @@ error surface starts mattering for user-visible messaging). See
 `docs/18-slack-app-setup.md §When to use a Developer Program sandbox` for
 the trade-off summary.
 
+## CI-driven Terraform deploys
+
+`deploy.yml` is a `workflow_dispatch`-only placeholder today. Manual
+`terraform apply` from an operator laptop is the source of truth in
+Phase 1. Before deploys can actually run through GitHub Actions the
+workflow needs:
+
+- Backend values (`backend.hcl` is gitignored per ADR-006) materialized
+  on the runner. Two GitHub environment secrets per env
+  (`TF_BACKEND_BUCKET`, `TF_BACKEND_KEY`) plus a step that writes them
+  into `backend.hcl` at runtime is the shape.
+- `terraform init` in `plan` and `apply` steps needs the resulting
+  `-backend-config=backend.hcl`.
+- OIDC assume-role for AWS credentials. The `permissions: id-token: write`
+  is already there, but the corresponding IAM role trust policy and
+  `aws-actions/configure-aws-credentials` step are not.
+- A plugin cache (`TF_PLUGIN_CACHE_DIR` + `actions/cache`) to keep the
+  sequential `terraform init` calls in `ci.yml` from redownloading the
+  AWS provider each time. Not blocking today, but a transient timeout on
+  one of the ~11 module inits already tripped CI once
+  (2026-07-30, self-resolved on re-run).
+
+Promote when we want to remove the "manual `terraform apply`" step from
+`docs/14 §Deployment order`.
+
 ## Enhanced reporting
 
 Possible additions:
