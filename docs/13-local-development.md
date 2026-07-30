@@ -62,9 +62,13 @@ pnpm test:integration
 pnpm build
 pnpm dev
 pnpm infra:validate
+pnpm infra:bootstrap                    # once per AWS account — creates the tfstate bucket
+pnpm infra:artifacts <dev|production>   # per env — creates the Lambda artifact bucket
+pnpm infra:stub-lambdas <dev|production>  # uploads hello-world zips so terraform apply can create the four Lambdas
+pnpm infra:destroy <dev|production>     # production requires --yes-really-production
 ```
 
-The actual package manager may differ, but one tool should be standardized across the monorepo.
+The actual package manager may differ, but one tool should be standardized across the monorepo. Every `infra:*` script beyond `validate` requires an AWS session; see `docs/14` §First stand-up for the run order.
 
 ## Testing scheduled jobs locally
 

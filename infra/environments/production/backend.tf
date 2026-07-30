@@ -1,13 +1,10 @@
 terraform {
-  backend "s3" {
-    # Configure via `terraform init -backend-config=...` or a backend config file.
-    # docs/08-terraform-standards.md §State: S3 backend, versioning, native S3
-    # lockfile mechanism, encryption at rest, separate state keys per env.
-    #
-    # bucket       = "<company>-tfstate"
-    # key          = "nominate-slackbot/production/terraform.tfstate"
-    # region       = "us-east-1"
-    # encrypt      = true
-    # use_lockfile = true
-  }
+  # Partial backend configuration. Real values (bucket, key) live in the
+  # gitignored backend.hcl next to this file. Init with:
+  #
+  #   terraform init -backend-config=backend.hcl
+  #
+  # docs/08-terraform-standards.md §State; docs/09 §Open-source controls
+  # (account IDs are not committed).
+  backend "s3" {}
 }

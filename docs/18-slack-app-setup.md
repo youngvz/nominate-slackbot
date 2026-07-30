@@ -31,11 +31,10 @@ options:
   enrolled in the Developer Program yet, but limits later integration
   coverage (no guests, no Slack Connect).
 
-The repo has one Slack app per environment: `Nominate (dev)`, `Nominate
-(staging)`, `Nominate (prod)`. Each is a distinct app registration in Slack
-with its own signing secret and bot token. They all install from the same
-`slack/manifest.json` — only the `display_information.name` and the two
-request URLs change.
+The repo has one Slack app per environment: `Nominate (dev)` and `Nominate
+(prod)`. Each is a distinct app registration in Slack with its own signing
+secret and bot token. They both install from the same `slack/manifest.json`
+— only the `display_information.name` and the two request URLs change.
 
 ## About Developer Program sandboxes
 
@@ -158,9 +157,9 @@ Interactive prompts you'll see on a Grid / sandbox org:
   (that's the next prompt). Convention:
   - `local` — the app you point at your dev tunnel URL, expected to
     change frequently as ngrok rotates.
-  - `deployed` — for staging/prod later; points at a stable API Gateway
-    URL. You end up with two separate app registrations in the CLI, each
-    with its own signing secret and bot token.
+  - `deployed` — points at the stable production API Gateway URL. You end
+    up with two separate app registrations in the CLI, each with its own
+    signing secret and bot token.
 - **Choose a workspace:** pick one workspace inside your sandbox org.
   This is the org-workspace grant. You can add more workspaces later via
   the org admin console, or re-run `slack app install` with a different
@@ -436,15 +435,15 @@ modal should open. If not, check:
 
 ## Environment-specific apps
 
-Dev, staging, and prod each get their own Slack app registration so that
-signing secrets and OAuth tokens are isolated. Recommended: one Slack CLI
+Dev and prod each get their own Slack app registration so that signing
+secrets and OAuth tokens are isolated. Recommended: one Slack CLI
 "environment" per Slack environment.
 
 CLI approach:
 
 ```bash
-# Staging — inside the target Slack workspace (a different sandbox
-# workspace, or the corporate workspace once we move past sandbox):
+# Production — inside the target Slack workspace (the corporate workspace,
+# or the dedicated production sandbox):
 slack login                            # if this is a new machine
 slack app install --environment deployed  # links a second app entry
 ```
@@ -452,9 +451,8 @@ slack app install --environment deployed  # links a second app entry
 Before running `slack app install --environment deployed`, edit
 `slack/manifest.json` locally to:
 
-1. Set `display_information.name` to `Nominate (staging)` /
-   `Nominate (prod)`.
-2. Set both request URLs to the environment's API Gateway URL
+1. Set `display_information.name` to `Nominate (prod)`.
+2. Set both request URLs to production's API Gateway URL
    (`https://<api-id>.execute-api.<region>.amazonaws.com/slack/events`).
 
 Revert the manifest after install (`git checkout slack/manifest.json`)

@@ -47,8 +47,13 @@ mkdir -p "$TF_PLUGIN_CACHE_DIR"
 
 cd "$ENV_DIR"
 
+if [ ! -f backend.hcl ]; then
+  echo "error: $ENV_DIR/backend.hcl is missing. Copy backend.hcl.example and fill in real values." >&2
+  exit 2
+fi
+
 echo ">> Initializing $ENV_DIR"
-terraform init -input=false >/dev/null
+terraform init -input=false -backend-config=backend.hcl >/dev/null
 
 echo ">> Planning destroy for $ENV"
 terraform plan -destroy -input=false
