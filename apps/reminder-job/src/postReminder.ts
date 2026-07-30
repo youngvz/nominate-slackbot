@@ -50,6 +50,7 @@ export async function postReminder(
     channel: deps.recognitionChannelId,
     text: message.text,
     blocks: message.blocks,
+    workspaceId: event.workspaceId,
   });
 
   await deps.reminders.markPosted({

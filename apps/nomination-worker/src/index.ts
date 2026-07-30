@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { loadEnv } from "@nominate/configuration";
+import { loadEnv, resolveBotToken } from "@nominate/configuration";
 import {
   decodeEvent,
   UnsupportedSchemaVersionError,
@@ -13,7 +13,7 @@ import {
   createNominationRepository,
   DEFAULT_GSI1_NAME,
 } from "@nominate/persistence";
-import { createSlackClient } from "@nominate/slack";
+import { createSlackClient, SlackApiError } from "@nominate/slack";
 import type { SQSBatchItemFailure, SQSBatchResponse, SQSHandler, SQSRecord } from "aws-lambda";
 import { processMessage, type ProcessMessageDeps } from "./processMessage.js";
 
@@ -30,10 +30,7 @@ let cachedDeps: WorkerDeps | undefined;
 async function getDeps(): Promise<WorkerDeps> {
   if (cachedDeps) return cachedDeps;
   const env = loadEnv();
-  const botToken = env.SLACK_BOT_TOKEN;
-  if (!botToken) {
-    throw new Error("SLACK_BOT_TOKEN must be resolved before handling messages");
-  }
+  const botToken = await resolveBotToken(env);
   const logger = createLogger({
     service: env.SERVICE_NAME,
     environment: env.NODE_ENV,
@@ -108,11 +105,25 @@ async function handleOneRecord(record: SQSRecord, deps: WorkerDeps): Promise<Rec
     await processMessage(event, deps);
     return "OK";
   } catch (err) {
+    // Log err.message + err.name. Message may include a Slack ID or ARN but
+    // never a signing secret / token / description body per docs/09 §Logging.
+    const slackFields =
+      err instanceof SlackApiError
+        ? {
+            slackEndpoint: err.endpoint,
+            slackError: err.slackError,
+            slackNeeded: err.needed,
+            slackProvided: err.provided,
+            slackIsEnterpriseInstall: err.isEnterpriseInstall,
+          }
+        : {};
     deps.logger.error("worker_process_failed", {
       correlationId: event.correlationId,
       workspaceId: event.workspaceId,
       outcome: "retry",
       errorCategory: err instanceof Error ? err.name : "unknown",
+      errorMessage: err instanceof Error ? err.message : String(err),
+      ...slackFields,
     });
     return "RETRY";
   }

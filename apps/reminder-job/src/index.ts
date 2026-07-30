@@ -1,4 +1,4 @@
-import { loadEnv } from "@nominate/configuration";
+import { loadEnv, resolveBotToken } from "@nominate/configuration";
 import type { WeeklyReminderRequestedV1 } from "@nominate/contracts";
 import { createLogger, type Logger } from "@nominate/observability";
 import {
@@ -21,10 +21,7 @@ let cachedDeps: HandlerDeps | undefined;
 async function getDeps(): Promise<HandlerDeps> {
   if (cachedDeps) return cachedDeps;
   const env = loadEnv();
-  const botToken = env.SLACK_BOT_TOKEN;
-  if (!botToken) {
-    throw new Error("SLACK_BOT_TOKEN must be resolved before handling reminders");
-  }
+  const botToken = await resolveBotToken(env);
   const logger = createLogger({
     service: env.SERVICE_NAME,
     environment: env.NODE_ENV,

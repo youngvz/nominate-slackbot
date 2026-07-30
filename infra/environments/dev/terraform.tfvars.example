@@ -8,3 +8,8 @@ artifact_bucket        = "example-artifacts-bucket"
 owner                  = "team-recognition"
 cost_center            = ""
 data_classification    = "Internal"
+
+# Dev posture — resources are freely destroyable.
+enable_deletion_protection = false
+force_destroy              = true
+log_retention_days         = 7
