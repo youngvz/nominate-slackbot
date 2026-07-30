@@ -288,7 +288,10 @@ describe("runReport", () => {
 
     // Only U_B is DMed again; U_A is skipped.
     expect(h.slack.openDm).toHaveBeenCalledTimes(1);
-    expect(h.slack.openDm.mock.calls[0]![0]).toEqual({ userSlackId: "U_B" });
+    expect(h.slack.openDm.mock.calls[0]![0]).toEqual({
+      userSlackId: "U_B",
+      workspaceId: "T1",
+    });
   });
 
   it("marks a DM as FAILED_RETRYABLE and still records PUBLISHED — a DM failure does not roll back publication", async () => {
