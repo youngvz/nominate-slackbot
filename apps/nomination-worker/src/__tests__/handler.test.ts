@@ -56,7 +56,10 @@ interface Deps extends ProcessMessageDeps {
 function deps(overrides: Partial<{
   acceptImpl: NominationRepository["acceptNomination"];
 }> = {}): Deps {
-  const eligibility: EligibilityRepository = { find: vi.fn().mockResolvedValue(null) };
+  const eligibility: EligibilityRepository = {
+    find: vi.fn().mockResolvedValue(null),
+    listByNominator: vi.fn().mockResolvedValue([]),
+  };
   const nominations: NominationRepository = {
     acceptNomination:
       overrides.acceptImpl ??

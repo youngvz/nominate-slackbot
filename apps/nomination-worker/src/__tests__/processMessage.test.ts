@@ -57,7 +57,10 @@ interface Harness {
     findById: ReturnType<typeof vi.fn>;
     queryByPeriod: ReturnType<typeof vi.fn>;
   };
-  eligibility: { find: ReturnType<typeof vi.fn> };
+  eligibility: {
+    find: ReturnType<typeof vi.fn>;
+    listByNominator: ReturnType<typeof vi.fn>;
+  };
   idempotency: {
     lookup: ReturnType<typeof vi.fn>;
     store: ReturnType<typeof vi.fn>;
@@ -78,6 +81,7 @@ function harness(overrides: Partial<{
   };
   const eligibility: EligibilityRepository = {
     find: vi.fn().mockResolvedValue(overrides.existingEligibility ?? null),
+    listByNominator: vi.fn().mockResolvedValue([]),
   };
   const nominations: NominationRepository = {
     acceptNomination: vi
@@ -143,7 +147,7 @@ describe("processMessage", () => {
     expect(call.nomination.submittedAtEpochMs).toBe(NOW_MS);
     expect(h.slack.postMessage).toHaveBeenCalledTimes(1);
     const dmText = h.slack.postMessage.mock.calls[0]![0].text as string;
-    expect(dmText).toMatch(/recorded/i);
+    expect(dmText).toMatch(/recognition/i);
     expect(h.idempotency.store).toHaveBeenCalledTimes(1);
   });
 

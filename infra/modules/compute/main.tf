@@ -126,6 +126,18 @@ data "aws_iam_policy_document" "slack_ingress" {
     actions   = ["sqs:SendMessage"]
     resources = [var.nomination_queue_arn]
   }
+
+  # Read-only DynamoDB access for pre-flight repeat-window and prior-recognition
+  # lookups on view_submission and slash-command paths. Writes still happen
+  # exclusively on the worker Lambda (docs/04 §Nomination worker Lambda).
+  statement {
+    effect = "Allow"
+    actions = [
+      "dynamodb:GetItem",
+      "dynamodb:Query",
+    ]
+    resources = [var.dynamodb_table_arn, var.dynamodb_gsi1_arn]
+  }
 }
 
 resource "aws_iam_role_policy" "slack_ingress" {

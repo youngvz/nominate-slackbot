@@ -9,9 +9,10 @@ Phase 1 uses Slack HTTP request URLs and `/nominate` as the primary entry point.
 1. Slack sends the signed command request to API Gateway.
 2. The ingress Lambda verifies the signature and replay window.
 3. The command is acknowledged immediately.
-4. The app uses the command `trigger_id` to open a modal.
+4. The ingress queries DynamoDB for the nominator's active eligibility records so the modal can display who they've already recognized this cycle.
+5. The app uses the command `trigger_id` to open a modal.
 
-The command should not parse recipient handles or descriptions from raw command text.
+If the eligibility lookup fails or is slow, the modal still opens without the hint — Slack's `trigger_id` expires after three seconds, so degrading gracefully matters more than the hint. The command should not parse recipient handles or descriptions from raw command text.
 
 ### Submission sequence
 
@@ -40,9 +41,9 @@ sequenceDiagram
     Slack->>APIGW: view_submission
     APIGW->>Ingress: POST /slack/events
 
-    alt description invalid (length / empty)
+    alt description invalid (length / empty) or repeat-window hit
         Ingress-->>Slack: 200 with response_action=errors
-        Slack-->>Employee: inline modal errors
+        Slack-->>Employee: inline modal errors (keeps typed description)
     else valid payload
         Ingress->>SQS: SendMessage (envelope v1)
         Ingress-->>Slack: 200 (close modal)
@@ -85,6 +86,8 @@ Validation should reject:
 
 Eligibility conflicts discovered after submission should be returned privately through the appropriate Slack response mechanism.
 
+The ingress Lambda performs an eligibility pre-check on `view_submission` and returns `response_action=errors` under the recipient block when the same pair is still inside the 14-day window. This keeps the user's typed description intact so they can swap recipients without retyping. The worker still enforces the same rule atomically through the DynamoDB conditional in `TransactWriteItems` (docs/05 §Eligibility lock) — that guard covers the race where two rapid submissions both pass the pre-check.
+
 ## Response visibility
 
 | Outcome | Visibility |
@@ -100,19 +103,19 @@ Eligibility conflicts discovered after submission should be returned privately t
 
 Success:
 
-> Your nomination for <@RECIPIENT_ID> was recorded. Thanks for recognizing their work.
+> Recognition for <@RECIPIENT_ID> is in. Thanks for the shout-out.
 
 Self-nomination:
 
-> You cannot nominate yourself. Please choose another teammate.
+> Recognition is for teammates — pick someone else to celebrate.
 
 Duplicate:
 
-> You already nominated <@RECIPIENT_ID> within the last 14 days. You can nominate them again after {localizedNextEligibleAt}.
+> <@RECIPIENT_ID> is already recognized this cycle. You can nominate them again after {localizedNextEligibleAt}.
 
 Ineligible account:
 
-> That account cannot receive nominations. Please choose an active employee in this workspace.
+> That account can't receive recognition. Please pick an active teammate in this workspace.
 
 ## Channel configuration
 
