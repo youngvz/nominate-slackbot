@@ -42,6 +42,7 @@ resource "aws_dynamodb_table" "app" {
     enabled = var.enable_pitr
   }
 
+  #tfsec:ignore:aws-dynamodb-table-customer-key AWS-managed SSE is sufficient; docs/05 and docs/09 don't mandate a CMK
   server_side_encryption {
     enabled = true
   }

@@ -18,6 +18,12 @@ variable "ingress_lambda_function_arn" {
   type        = string
 }
 
+variable "log_retention_days" {
+  description = "CloudWatch retention for API Gateway access logs."
+  type        = number
+  default     = 30
+}
+
 variable "tags" {
   description = "Required tags per docs/08 §Required tags."
   type        = map(string)

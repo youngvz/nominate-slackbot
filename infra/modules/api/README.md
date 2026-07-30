@@ -12,6 +12,7 @@ Reference: `docs/07-aws-infrastructure.md` §Edge and compute; `docs/03-slack-ap
 | `environment` | string | — | Environment name. |
 | `ingress_lambda_invoke_arn` | string | — | Slack ingress Lambda invoke ARN. |
 | `ingress_lambda_function_arn` | string | — | Slack ingress Lambda function ARN (used to scope the permission). |
+| `log_retention_days` | number | `30` | Retention for the API Gateway access log group. |
 | `tags` | map(string) | `{}` | Tags. |
 
 ## Outputs

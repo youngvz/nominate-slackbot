@@ -79,6 +79,7 @@ resource "aws_iam_role" "function" {
   tags               = var.tags
 }
 
+#tfsec:ignore:aws-cloudwatch-log-group-customer-key AWS-managed SSE is sufficient; docs/09 prohibits logging secrets or descriptions so payloads are ID-only
 resource "aws_cloudwatch_log_group" "function" {
   for_each          = local.functions
   name              = "/aws/lambda/${each.value.name}"
@@ -100,6 +101,24 @@ resource "aws_iam_role_policy" "logs" {
   name     = "logs"
   role     = aws_iam_role.function[each.key].id
   policy   = data.aws_iam_policy_document.logs[each.key].json
+}
+
+data "aws_iam_policy_document" "xray" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "xray:PutTraceSegments",
+      "xray:PutTelemetryRecords",
+    ]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_role_policy" "xray" {
+  for_each = local.functions
+  name     = "xray"
+  role     = aws_iam_role.function[each.key].id
+  policy   = data.aws_iam_policy_document.xray.json
 }
 
 # --- Per-function scoped IAM policies -----------------------------------------
@@ -226,11 +245,16 @@ resource "aws_lambda_function" "function" {
     variables = each.value.env
   }
 
+  tracing_config {
+    mode = "Active"
+  }
+
   tags = var.tags
 
   depends_on = [
     aws_cloudwatch_log_group.function,
     aws_iam_role_policy.logs,
+    aws_iam_role_policy.xray,
   ]
 }
 

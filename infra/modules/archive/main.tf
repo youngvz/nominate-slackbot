@@ -1,3 +1,4 @@
+#tfsec:ignore:aws-s3-enable-bucket-logging docs/09 §S3 controls: access captured by org audit mechanism, not per-bucket logs. A log-target bucket would recurse into the same rule.
 resource "aws_s3_bucket" "archive" {
   bucket        = var.bucket_name
   force_destroy = var.force_destroy

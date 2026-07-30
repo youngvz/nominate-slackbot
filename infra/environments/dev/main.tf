@@ -63,6 +63,7 @@ module "api" {
   environment                 = var.environment
   ingress_lambda_invoke_arn   = module.compute.slack_ingress_invoke_arn
   ingress_lambda_function_arn = module.compute.slack_ingress_function_arn
+  log_retention_days          = var.log_retention_days
   tags                        = local.tags
 }
 
