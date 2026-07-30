@@ -7,10 +7,10 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: Target environment (dev, staging, production).
+        description: Target environment (dev, production).
         required: true
         type: choice
-        options: [dev, staging, production]
+        options: [dev, production]
 
 permissions:
   id-token: write
