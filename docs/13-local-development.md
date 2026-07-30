@@ -39,7 +39,7 @@ Summary:
 - Substitute request URLs with your local tunnel URL at install time.
 - Never commit real signing secrets, bot tokens, or tunnel URLs.
 - Install only the scopes declared in the manifest (`commands`, `chat:write`,
-  `users:read`).
+  `users:read`, `im:write`).
 - Invite the bot to the development recognition channel.
 - Use an HTTPS tunnel (ngrok / Cloudflared) for local callback testing.
 
