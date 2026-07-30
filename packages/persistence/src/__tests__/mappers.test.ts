@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type {
   EligibilityItem,
   NominationItem,
+  ReminderExecutionItem,
   ReportExecutionItem,
 } from "@nominate/domain";
 import { keys } from "../keys.js";
@@ -13,6 +14,10 @@ import {
   fromNominationDdbItem,
   toNominationDdbItem,
 } from "../mappers/nomination.js";
+import {
+  fromReminderDdbItem,
+  toReminderDdbItem,
+} from "../mappers/reminder.js";
 import { fromReportDdbItem, toReportDdbItem } from "../mappers/report.js";
 
 const nomination: NominationItem = {
@@ -129,5 +134,41 @@ describe("report mapper", () => {
     const raw = toReportDdbItem(reportPublished);
     expect(raw.PK).toBe(keys.reportPK(reportPublished.workspaceId));
     expect(raw.SK).toBe(keys.reportSK(reportPublished.periodStart));
+  });
+});
+
+const reminderPending: ReminderExecutionItem = {
+  entityType: "REMINDER_EXECUTION",
+  workspaceId: "T1",
+  scheduledAt: "2026-08-07T13:00:00.000Z",
+  status: "PENDING",
+};
+
+const reminderPosted: ReminderExecutionItem = {
+  entityType: "REMINDER_EXECUTION",
+  workspaceId: "T1",
+  scheduledAt: "2026-08-07T13:00:00.000Z",
+  status: "POSTED",
+  publicMessageTs: "1754571600.000100",
+  postedAt: "2026-08-07T13:00:01.000Z",
+};
+
+describe("reminder mapper", () => {
+  it("round-trips a PENDING reminder row", () => {
+    expect(fromReminderDdbItem(toReminderDdbItem(reminderPending))).toEqual(
+      reminderPending,
+    );
+  });
+
+  it("round-trips a POSTED reminder row with public message ts", () => {
+    expect(fromReminderDdbItem(toReminderDdbItem(reminderPosted))).toEqual(
+      reminderPosted,
+    );
+  });
+
+  it("populates PK/SK for the workspace and scheduled time", () => {
+    const raw = toReminderDdbItem(reminderPending);
+    expect(raw.PK).toBe(keys.reminderPK(reminderPending.workspaceId));
+    expect(raw.SK).toBe(keys.reminderSK(reminderPending.scheduledAt));
   });
 });
