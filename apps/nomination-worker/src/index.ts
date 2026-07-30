@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { loadEnv } from "@nominate/configuration";
+import { loadEnv, resolveBotToken } from "@nominate/configuration";
 import {
   decodeEvent,
   UnsupportedSchemaVersionError,
@@ -30,10 +30,7 @@ let cachedDeps: WorkerDeps | undefined;
 async function getDeps(): Promise<WorkerDeps> {
   if (cachedDeps) return cachedDeps;
   const env = loadEnv();
-  const botToken = env.SLACK_BOT_TOKEN;
-  if (!botToken) {
-    throw new Error("SLACK_BOT_TOKEN must be resolved before handling messages");
-  }
+  const botToken = await resolveBotToken(env);
   const logger = createLogger({
     service: env.SERVICE_NAME,
     environment: env.NODE_ENV,
