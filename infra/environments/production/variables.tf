@@ -24,6 +24,12 @@ variable "maintainer_slack_ids" {
   default     = []
 }
 
+variable "report_workspace_id" {
+  description = "Slack workspace ID (T…) the scheduled report Lambda targets when EventBridge fires with an empty payload (docs/10 §Scheduled input contract). Required for the scheduled biweekly report."
+  type        = string
+  default     = ""
+}
+
 variable "artifact_bucket" {
   type = string
 }

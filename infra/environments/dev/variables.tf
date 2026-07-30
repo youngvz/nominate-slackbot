@@ -24,6 +24,24 @@ variable "maintainer_slack_ids" {
   default     = []
 }
 
+variable "program_start_at" {
+  description = "Dev override for the program start (docs/10). Defaults to the real 2026-07-31 anchor; set to an earlier ISO-8601 timestamp to pull the first period back for pre-launch demos."
+  type        = string
+  default     = "2026-07-31T00:00:00-04:00"
+}
+
+variable "first_report_at" {
+  description = "Dev override for the first-report anchor (docs/10). Empty string keeps the domain default; when overriding program_start_at for a demo, set this to program_start_at + 14 days at 12:00 local so the first period stays half-open."
+  type        = string
+  default     = ""
+}
+
+variable "report_workspace_id" {
+  description = "Slack workspace ID (T…) the scheduled report Lambda targets when EventBridge fires with an empty payload (docs/10 §Scheduled input contract). Phase 1 is single-workspace so this is a single string."
+  type        = string
+  default     = ""
+}
+
 variable "artifact_bucket" {
   type = string
 }

@@ -11,17 +11,21 @@ locals {
   # REPORT_FUNCTION_NAME is read by the ingress Lambda's admin path
   # (docs/03 §Admin surface). Other roles ignore it, and IAM (below) limits
   # lambda:InvokeFunction on the report function to the ingress role.
-  shared_env = {
-    SLACK_SIGNING_SECRET_ARN     = var.slack_signing_secret_arn
-    SLACK_BOT_TOKEN_ARN          = var.slack_bot_token_arn
-    SLACK_RECOGNITION_CHANNEL_ID = var.recognition_channel_id
-    SLACK_MAINTAINER_IDS         = var.slack_maintainer_ids
-    DYNAMODB_TABLE_NAME          = var.dynamodb_table_name
-    NOMINATION_QUEUE_URL         = var.nomination_queue_url
-    PROGRAM_TIMEZONE             = var.program_timezone
-    PROGRAM_START_AT             = var.program_start_at
-    REPORT_FUNCTION_NAME         = local.report_function_name
-  }
+  shared_env = merge(
+    {
+      SLACK_SIGNING_SECRET_ARN     = var.slack_signing_secret_arn
+      SLACK_BOT_TOKEN_ARN          = var.slack_bot_token_arn
+      SLACK_RECOGNITION_CHANNEL_ID = var.recognition_channel_id
+      SLACK_MAINTAINER_IDS         = var.slack_maintainer_ids
+      DYNAMODB_TABLE_NAME          = var.dynamodb_table_name
+      NOMINATION_QUEUE_URL         = var.nomination_queue_url
+      PROGRAM_TIMEZONE             = var.program_timezone
+      PROGRAM_START_AT             = var.program_start_at
+      REPORT_FUNCTION_NAME         = local.report_function_name
+    },
+    var.first_report_at == "" ? {} : { FIRST_REPORT_AT = var.first_report_at },
+    var.report_workspace_id == "" ? {} : { REPORT_WORKSPACE_ID = var.report_workspace_id },
+  )
 
   functions = {
     slack_ingress = {
