@@ -1,6 +1,21 @@
 locals {
   name_prefix = "${var.project}-${var.environment}"
 
+  # Shared config injected into every Lambda. packages/configuration expects
+  # this full set at cold start regardless of the function's role; scoping
+  # environment variables per-Lambda used to trip loadEnv on ingress. The
+  # secrets are still IAM-scoped per role, so a function that doesn't need a
+  # given credential can't read it even though the ARN is present.
+  shared_env = {
+    SLACK_SIGNING_SECRET_ARN     = var.slack_signing_secret_arn
+    SLACK_BOT_TOKEN_ARN          = var.slack_bot_token_arn
+    SLACK_RECOGNITION_CHANNEL_ID = var.recognition_channel_id
+    DYNAMODB_TABLE_NAME          = var.dynamodb_table_name
+    NOMINATION_QUEUE_URL         = var.nomination_queue_url
+    PROGRAM_TIMEZONE             = var.program_timezone
+    PROGRAM_START_AT             = var.program_start_at
+  }
+
   functions = {
     slack_ingress = {
       name        = "${local.name_prefix}-slack-ingress"
@@ -8,13 +23,7 @@ locals {
       handler     = "dist/index.handler"
       timeout     = var.default_timeout_seconds
       memory_size = 256
-      env = {
-        SLACK_SIGNING_SECRET_ARN = var.slack_signing_secret_arn
-        SLACK_BOT_TOKEN_ARN      = var.slack_bot_token_arn
-        NOMINATION_QUEUE_URL     = var.nomination_queue_url
-        PROGRAM_TIMEZONE         = var.program_timezone
-        PROGRAM_START_AT         = var.program_start_at
-      }
+      env         = local.shared_env
     }
     nomination_worker = {
       name        = "${local.name_prefix}-nomination-worker"
@@ -22,13 +31,7 @@ locals {
       handler     = "dist/index.handler"
       timeout     = var.worker_timeout_seconds
       memory_size = 512
-      env = {
-        DYNAMODB_TABLE_NAME          = var.dynamodb_table_name
-        SLACK_BOT_TOKEN_ARN          = var.slack_bot_token_arn
-        SLACK_RECOGNITION_CHANNEL_ID = var.recognition_channel_id
-        PROGRAM_TIMEZONE             = var.program_timezone
-        PROGRAM_START_AT             = var.program_start_at
-      }
+      env         = local.shared_env
     }
     reminder = {
       name        = "${local.name_prefix}-reminder"
@@ -36,13 +39,7 @@ locals {
       handler     = "dist/index.handler"
       timeout     = var.default_timeout_seconds
       memory_size = 256
-      env = {
-        DYNAMODB_TABLE_NAME          = var.dynamodb_table_name
-        SLACK_BOT_TOKEN_ARN          = var.slack_bot_token_arn
-        SLACK_RECOGNITION_CHANNEL_ID = var.recognition_channel_id
-        PROGRAM_TIMEZONE             = var.program_timezone
-        PROGRAM_START_AT             = var.program_start_at
-      }
+      env         = local.shared_env
     }
     report = {
       name        = "${local.name_prefix}-report"
@@ -50,13 +47,7 @@ locals {
       handler     = "dist/index.handler"
       timeout     = var.default_timeout_seconds
       memory_size = 512
-      env = {
-        DYNAMODB_TABLE_NAME          = var.dynamodb_table_name
-        SLACK_BOT_TOKEN_ARN          = var.slack_bot_token_arn
-        SLACK_RECOGNITION_CHANNEL_ID = var.recognition_channel_id
-        PROGRAM_TIMEZONE             = var.program_timezone
-        PROGRAM_START_AT             = var.program_start_at
-      }
+      env         = local.shared_env
     }
   }
 }

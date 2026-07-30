@@ -86,17 +86,27 @@ Runs once per AWS account, per environment. `dev` first, then `production` with 
 
 9. **Configure Slack.** `terraform output slack_request_url` prints the API Gateway URL. Paste it into the Slack app's Request URL (see `docs/18`). Invite the bot to the configured recognition channel.
 
+10. **Swap the stubs for real Lambda code.**
+
+    ```bash
+    pnpm build:lambda
+    pnpm infra:upload-lambdas <env>
+    ```
+
+    `build:lambda` bundles each `apps/*/src/index.ts` into `apps/*/dist/lambda.zip` via esbuild (`@aws-sdk/*` externalized because the Lambda runtime provides SDK v3). `infra:upload-lambdas` uploads each zip to the same S3 keys the stubs occupied and calls `aws lambda update-function-code` so the running Lambdas pick up the new code — no `terraform apply` needed.
+
 ## Deployment order
 
 Once an environment is stood up, subsequent releases follow:
 
 1. Validate and plan infrastructure.
 2. Deploy backward-compatible table/index changes.
-3. Build versioned Lambda artifacts.
+3. Build versioned Lambda artifacts (`pnpm build:lambda`).
 4. Apply infrastructure using reviewed artifacts.
-5. Run smoke tests against the Slack development app.
-6. Promote to production with approval.
-7. Verify command, reminder/report configuration, logs, alarms, and queue health.
+5. Publish new Lambda code (`pnpm infra:upload-lambdas <env>`).
+6. Run smoke tests against the Slack development app.
+7. Promote to production with approval.
+8. Verify command, reminder/report configuration, logs, alarms, and queue health.
 
 ## Database changes
 

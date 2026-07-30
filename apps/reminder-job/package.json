@@ -9,7 +9,8 @@
     "typecheck": "tsc -b --noEmit",
     "lint": "eslint src",
     "test": "vitest run",
-    "dev": "echo 'reminder-job dev entry TBD'"
+    "dev": "echo 'reminder-job dev entry TBD'",
+    "build:lambda": "node ../../scripts/bundle-lambda.mjs ."
   },
   "dependencies": {
     "@nominate/configuration": "workspace:*",
