@@ -1,6 +1,7 @@
-import { NotImplementedError } from "@nominate/observability";
-import type { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
+import { type DynamoDBDocumentClient, GetCommand } from "@aws-sdk/lib-dynamodb";
 import type { EligibilityItem } from "@nominate/domain";
+import { keys } from "../keys.js";
+import { fromEligibilityDdbItem } from "../mappers/eligibility.js";
 
 export interface EligibilityRepository {
   find(input: {
@@ -11,8 +12,22 @@ export interface EligibilityRepository {
 }
 
 export function createEligibilityRepository(
-  _client: DynamoDBDocumentClient,
-  _tableName: string,
+  client: DynamoDBDocumentClient,
+  tableName: string,
 ): EligibilityRepository {
-  throw new NotImplementedError("createEligibilityRepository");
+  return {
+    async find({ workspaceId, nominatorSlackId, recipientSlackId }) {
+      const res = await client.send(
+        new GetCommand({
+          TableName: tableName,
+          Key: {
+            PK: keys.eligibilityPK(workspaceId, nominatorSlackId),
+            SK: keys.eligibilitySK(recipientSlackId),
+          },
+        }),
+      );
+      if (!res.Item) return null;
+      return fromEligibilityDdbItem(res.Item as Record<string, unknown>);
+    },
+  };
 }

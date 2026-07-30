@@ -1,6 +1,6 @@
-import { NotImplementedError } from "@nominate/observability";
-import type { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
+import { type DynamoDBDocumentClient, GetCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
 import type { NominationResult } from "@nominate/domain";
+import { keys } from "../keys.js";
 
 // docs/05 §Idempotency. Slack modal replays must return the original result.
 export interface IdempotencyRepository {
@@ -14,8 +14,42 @@ export interface IdempotencyRepository {
 }
 
 export function createIdempotencyRepository(
-  _client: DynamoDBDocumentClient,
-  _tableName: string,
+  client: DynamoDBDocumentClient,
+  tableName: string,
 ): IdempotencyRepository {
-  throw new NotImplementedError("createIdempotencyRepository");
+  return {
+    async lookup({ workspaceId, interactionId }) {
+      const res = await client.send(
+        new GetCommand({
+          TableName: tableName,
+          Key: {
+            PK: keys.idempotencyPK(workspaceId),
+            SK: keys.idempotencySK(interactionId),
+          },
+          ProjectionExpression: "#r",
+          ExpressionAttributeNames: { "#r": "result" },
+        }),
+      );
+      const stored = res.Item?.result;
+      if (!stored || typeof stored !== "object") return null;
+      return stored as NominationResult;
+    },
+
+    async store({ workspaceId, interactionId, result, ttlEpochSec }) {
+      await client.send(
+        new PutCommand({
+          TableName: tableName,
+          Item: {
+            PK: keys.idempotencyPK(workspaceId),
+            SK: keys.idempotencySK(interactionId),
+            entityType: "IDEMPOTENCY",
+            workspaceId,
+            interactionId,
+            result,
+            ttl: ttlEpochSec,
+          },
+        }),
+      );
+    },
+  };
 }
