@@ -44,7 +44,7 @@ workspaces, 8 users, 2 guests, 3 Slack Connect teams), free with the
 program, valid 6 months and extendable in 6-month increments. Source:
 <https://docs.slack.dev/tools/developer-sandboxes/>.
 
-Two things about it change the CLI workflow versus a free single-workspace:
+Three things about it change the CLI workflow versus a free single-workspace:
 
 1. **Login is org-level, not workspace-level.** `slack auth list` reports
    `Authorization Level: Organization` after `slack login`. Requires Slack
@@ -53,7 +53,15 @@ Two things about it change the CLI workflow versus a free single-workspace:
    registered at the org, but its bot needs an explicit grant for each
    workspace it can operate in. The CLI prompts interactively, or you can
    pre-declare with `--org-workspace-grant <team_id>` (the workspace's `T…`
-   ID, not the org `E…` ID) on `slack run` / `slack deploy`.
+   ID, not the org `E…` ID) on `slack run` / `slack deploy` / `slack app install`.
+3. **`org_deploy_enabled` must be `true` in the manifest.** On Grid orgs
+   `slack app install` installs at the org level (`is_enterprise_install:
+   true` in `auth.test`). If the manifest says `org_deploy_enabled: false`,
+   Slack registers the slash command with no valid dispatch target and
+   `/nominate` fails with `invalid_service` at runtime. Set it to `true`
+   for any Grid / sandbox target. On a free single-workspace it can be
+   `false`. The checked-in `slack/manifest.json` uses `true` since sandbox
+   is the current dev target.
 
 The manifest and application code do not change between a free workspace
 and a sandbox. Guest / external / Slack Connect / bot / deactivated
@@ -266,13 +274,18 @@ view will flag drift.
 
 ### 7. Try `/nominate`
 
-Invite the bot to a channel in your sandbox workspace, then type
-`/nominate`. The modal should open. Troubleshooting:
+Invite the bot to a channel in your sandbox workspace (`/invite @nominate`),
+then type `/nominate`. The modal should open. Troubleshooting:
 
-- `ngrok` inspector shows the request arrive.
-- Local server logs `slash_command_received`, not `slack_signature_rejected`.
+- Server logs a `slash_command_received` and then `slash_command_handled`
+  with `outcome: modal_opened`.
+- ngrok inspector at <http://127.0.0.1:4040> shows the POST arrive.
+- If Slack shows "`/nominate` failed with the error 'invalid_service'":
+  see "Troubleshooting `invalid_service`" below — this is a Grid /
+  sandbox-specific gotcha and is likely how your first install failed.
 - If Slack shows "`/nominate` failed with the error 'dispatch_failed'":
-  URL mismatch. Re-check step 6.
+  the Request URL Slack has for the workspace's slash command doesn't
+  match your tunnel. Re-check step 6b.
 - If the CLI fails at step 4 with an admin-approval error: approve the
   app request in the sandbox's org admin console, then re-run.
 
@@ -281,11 +294,80 @@ Invite the bot to a channel in your sandbox workspace, then type
 After editing `slack/manifest.json` (adding a scope, a shortcut, etc.):
 
 ```bash
-slack manifest validate
-slack app install    # re-applies to the linked app
+slack manifest validate --app <App ID>
+slack app install --app <App ID> --team <Org ID> --org-workspace-grant <Team ID>
 ```
 
+Passing `--app` / `--team` / `--org-workspace-grant` explicitly (instead
+of letting the CLI prompt interactively) is the reliable idiom for a
+sandbox install — the CLI's interactive prompts sometimes error with
+"input device is not a TTY" and always add a click for you to make. The
+three IDs come from `slack app list`.
+
 Slack asks you to re-approve the app if a new scope was added.
+
+## Troubleshooting `invalid_service`
+
+Symptoms:
+
+- `/nominate` in the Slack workspace returns `/nominate failed with the
+  error "invalid_service"`.
+- Server logs show **zero** requests. ngrok inspector at
+  <http://127.0.0.1:4040> shows **zero** requests. Slack never dispatched.
+- `auth.test` with the bot token returns `"is_enterprise_install": true`.
+
+Cause: on Enterprise Grid orgs (including Developer Program sandboxes),
+`slack app install` installs the app at the **org level**. If the
+manifest has `settings.org_deploy_enabled: false`, Slack has an
+inconsistent state — org-installed app, but the manifest declares the
+app isn't meant for org deploy. Slack registers `/nominate` but has no
+valid dispatch target for the workspace's execution context, so it
+returns `invalid_service` before ever hitting the network.
+
+Fix:
+
+1. Confirm the checked-in `slack/manifest.json` has
+   `"org_deploy_enabled": true` under `settings`.
+2. Re-push the manifest and reinstall:
+
+   ```bash
+   slack manifest validate --app <App ID>
+   slack app install --app <App ID> --team <Org ID> --org-workspace-grant <Team ID>
+   ```
+
+3. The workspace-scoped slash-command URL may still hold the placeholder
+   from the first install. Open
+   `https://api.slack.com/apps/<App ID>/slash-commands`, click the
+   pencil next to `/nominate`, and confirm the Request URL matches your
+   tunnel. **The manifest push does not always overwrite a workspace's
+   existing slash-command URL binding** — this is the second most common
+   root cause when `invalid_service` persists.
+
+## When to hand CLI commands back to a human
+
+The Slack CLI operates on live resources — org-level app grants,
+workspace installs, manifest state at Slack. When something goes wrong
+on the network side, the failure modes are subtle (org install vs
+workspace grant, dashboard-vs-manifest drift, admin approval flows),
+and an AI agent isn't in a good position to make the judgement call
+without your consent — for example whether it's appropriate to set
+`org_deploy_enabled: true` on a Grid org.
+
+Convention for this repo:
+
+- The AI agent may **read** CLI state freely (`slack auth list`,
+  `slack app list`, `slack manifest info --source remote`).
+- The AI agent may **edit** `slack/manifest.json` locally and propose
+  what to run.
+- **You** run any `slack app install` / `slack manifest validate --app` /
+  `slack login` / `slack app delete` command yourself, in your own
+  terminal, and paste the output back. This is especially true when
+  troubleshooting.
+
+This convention is what caught the `org_deploy_enabled` flip during the
+first sandbox setup — the agent had proposed the change, but pausing to
+have a human run the install surfaced that the manifest was granting
+org-wide dispatch capability, which was worth conscious approval.
 
 ## Path B — Slack dashboard
 
