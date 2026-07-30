@@ -21,6 +21,39 @@ Example table name:
 
 ## Entity patterns
 
+### Overview
+
+Six entity types share one table via `PK`/`SK` prefixes, plus a single global secondary index (`GSI1`) that projects nominations for reporting range queries.
+
+```mermaid
+flowchart LR
+    subgraph Domain["Domain records"]
+        Nomination["NOMINATION<br/>PK: WORKSPACE#{ws}<br/>SK: NOMINATION#{epoch}#{id}"]
+        Eligibility["ELIGIBILITY<br/>PK: ELIGIBILITY#{ws}#{nominator}<br/>SK: RECIPIENT#{recipient}<br/><i>TTL cleanup only</i>"]
+    end
+
+    subgraph Execution["Execution / control records"]
+        Report["REPORT<br/>PK: WORKSPACE#{ws}<br/>SK: REPORT#{periodStart}"]
+        Reminder["REMINDER<br/>PK: WORKSPACE#{ws}<br/>SK: REMINDER#{scheduledAt}"]
+        Idempotency["IDEMPOTENCY<br/>PK: IDEMPOTENCY#{ws}<br/>SK: SLACK#{interactionId}"]
+        Audit["AUDIT<br/>PK: AUDIT#{ws}<br/>SK: EVENT#{epoch}#{id}"]
+    end
+
+    subgraph Index["GSI1 — reporting range query"]
+        GSI1["GSI1PK: WORKSPACE#{ws}#NOMINATIONS<br/>GSI1SK: {epoch}#{id}"]
+    end
+
+    Nomination -.->|"TransactWriteItems<br/>(atomic pair)"| Eligibility
+    Idempotency -.->|"guards"| Nomination
+    Nomination -->|"projected into"| GSI1
+    Report -->|"Query GSI1 [periodStart, periodEnd)"| GSI1
+
+    classDef planned stroke-dasharray: 5 5,stroke-width:1px
+    class Reminder,Audit planned
+```
+
+*Legend: dashed borders mark entity types whose repositories are still stubs (`ReminderRepository`, `AuditRepository`).*
+
 ### Nomination
 
 ```text
