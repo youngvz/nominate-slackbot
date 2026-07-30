@@ -83,6 +83,12 @@ interface BiweeklyReportRequestedV1 {
   periodStart: string;
   periodEnd: string;
   executionKey: string;
+  // Optional. Set only by admin-triggered on-demand runs
+  // (docs/03 §Admin surface); scheduled EventBridge runs never set this.
+  // When true, runReport overwrites the execution row back to PENDING and
+  // re-posts the public message + winner DMs, bypassing the PUBLISHED
+  // idempotency guard for demo purposes.
+  forceRepublish?: boolean;
 }
 ```
 

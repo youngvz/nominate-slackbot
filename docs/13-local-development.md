@@ -23,6 +23,10 @@ PROGRAM_TIMEZONE=America/New_York
 PROGRAM_START_AT=2026-07-31T00:00:00-04:00
 DYNAMODB_TABLE_NAME=
 NOMINATION_QUEUE_URL=
+# Ingress-only, optional. When unset, `/nominate-admin report` logs the
+# invocation and returns success without actually calling the report Lambda —
+# useful for local development where the report function isn't deployed.
+REPORT_FUNCTION_NAME=
 ```
 
 Do not commit `.env`.

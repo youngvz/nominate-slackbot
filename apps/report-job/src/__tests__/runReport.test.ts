@@ -59,6 +59,7 @@ interface Harness {
   reports: {
     getExecution: ReturnType<typeof vi.fn>;
     putPendingExecution: ReturnType<typeof vi.fn>;
+    overwritePendingExecution: ReturnType<typeof vi.fn>;
     markPublished: ReturnType<typeof vi.fn>;
     updateDmDelivery: ReturnType<typeof vi.fn>;
   };
@@ -86,6 +87,7 @@ function harness(
   const reportsRepo: ReportRepository = {
     getExecution: vi.fn().mockResolvedValue(overrides.existingExecution ?? null),
     putPendingExecution: vi.fn().mockResolvedValue(undefined),
+    overwritePendingExecution: vi.fn().mockResolvedValue(undefined),
     markPublished: vi.fn().mockResolvedValue(undefined),
     updateDmDelivery: vi.fn().mockResolvedValue(undefined),
   };
@@ -328,5 +330,68 @@ describe("runReport", () => {
       periodStartEpochMs: Date.parse("2026-07-31T04:00:00.000Z"),
       periodEndEpochMs: Date.parse("2026-08-14T16:00:00.000Z"),
     });
+  });
+
+  it("with forceRepublish=true, re-posts and re-DMs even when the row was already PUBLISHED and SENT", async () => {
+    const noms = [
+      nomination("U_A", "one", "n1"),
+      nomination("U_A", "two", "n2"),
+    ];
+    const existing: ReportExecutionItem = {
+      entityType: "REPORT_EXECUTION",
+      workspaceId: "T1",
+      periodStart: "2026-07-31T04:00:00.000Z",
+      periodEnd: "2026-08-14T16:00:00.000Z",
+      status: "PUBLISHED",
+      winnerSlackIds: ["U_A"],
+      countsBySlackId: { U_A: 2 },
+      publicMessageTs: "1725000000.000100",
+      publishedAt: "2026-08-14T16:00:01.000Z",
+      dmDeliveries: [
+        {
+          recipientSlackId: "U_A",
+          status: "SENT",
+          attempts: 1,
+          lastAttemptAt: "2026-08-14T16:00:02.000Z",
+        },
+      ],
+      retentionPolicy: "PUBLISHED_METADATA_INDEFINITE",
+    };
+    const h = harness({ nominations: noms, existingExecution: existing });
+
+    await runReport(event({ forceRepublish: true }), h.deps);
+
+    // Admin path overwrites (not conditional put) so the fresh PENDING row
+    // replaces the prior PUBLISHED/SENT state.
+    expect(h.reports.overwritePendingExecution).toHaveBeenCalledTimes(1);
+    expect(h.reports.putPendingExecution).not.toHaveBeenCalled();
+    const overwritten = h.reports.overwritePendingExecution.mock
+      .calls[0]![0] as ReportExecutionItem;
+    expect(overwritten.status).toBe("PENDING");
+    expect(overwritten.dmDeliveries).toEqual([
+      { recipientSlackId: "U_A", status: "PENDING", attempts: 0 },
+    ]);
+    // Fresh public post + PUBLISHED update.
+    expect(h.reports.markPublished).toHaveBeenCalledTimes(1);
+    // Channel post + DM.
+    expect(h.slack.postMessage).toHaveBeenCalledTimes(2);
+    expect(h.slack.postMessage.mock.calls[0]![0].channel).toBe(RECOG);
+    expect(h.slack.postMessage.mock.calls[1]![0].channel).toBe("D-U_A");
+    const delivery = h.reports.updateDmDelivery.mock.calls[0]![0]
+      .delivery as WinnerDmDelivery;
+    expect(delivery.status).toBe("SENT");
+    expect(delivery.attempts).toBe(1);
+  });
+
+  it("with forceRepublish=true and no existing row, behaves like a fresh scheduled run but via overwrite", async () => {
+    const noms = [nomination("U_A", "one", "n1")];
+    const h = harness({ nominations: noms });
+
+    await runReport(event({ forceRepublish: true }), h.deps);
+
+    expect(h.reports.overwritePendingExecution).toHaveBeenCalledTimes(1);
+    expect(h.reports.putPendingExecution).not.toHaveBeenCalled();
+    expect(h.reports.markPublished).toHaveBeenCalledTimes(1);
+    expect(h.slack.postMessage).toHaveBeenCalledTimes(2);
   });
 });

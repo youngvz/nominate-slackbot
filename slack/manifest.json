@@ -20,6 +20,13 @@
         "description": "Recognize a coworker.",
         "usage_hint": "opens the nomination form",
         "should_escape": false
+      },
+      {
+        "command": "/nominate-admin",
+        "url": "https://REPLACE_ME.example/slack/events",
+        "description": "Maintainer admin actions (report on demand).",
+        "usage_hint": "report",
+        "should_escape": false
       }
     ]
   },

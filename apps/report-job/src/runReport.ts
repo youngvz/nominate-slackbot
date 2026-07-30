@@ -76,11 +76,17 @@ export async function runReport(
     periodStart: event.periodStart,
   });
 
+  // Admin-triggered "force" runs (docs/03 §Admin surface) rewrite the execution
+  // row to a fresh PENDING state so the public post and winner DMs re-fire.
+  // Scheduled EventBridge invocations must never set this flag.
+  const forceRepublish = event.forceRepublish === true;
+
   const execution = await ensurePendingExecution({
     event,
-    existing,
+    existing: forceRepublish ? null : existing,
     winners,
     countsBySlackId,
+    forceRepublish,
     deps,
   });
 
@@ -88,6 +94,7 @@ export async function runReport(
     event,
     execution,
     winners,
+    forceRepublish,
     deps,
     log,
   });
@@ -109,6 +116,7 @@ interface PendingContext {
   existing: ReportExecutionItem | null;
   winners: Winner[];
   countsBySlackId: Record<string, number>;
+  forceRepublish: boolean;
   deps: RunReportDeps;
 }
 
@@ -117,6 +125,7 @@ async function ensurePendingExecution({
   existing,
   winners,
   countsBySlackId,
+  forceRepublish,
   deps,
 }: PendingContext): Promise<ReportExecutionItem> {
   if (existing) return existing;
@@ -137,7 +146,13 @@ async function ensurePendingExecution({
     ),
     retentionPolicy: "PUBLISHED_METADATA_INDEFINITE",
   };
-  await deps.reports.putPendingExecution(pending);
+  if (forceRepublish) {
+    // Admin force run: the previous execution row (if any) is replaced so the
+    // downstream publish + DM steps behave as a fresh execution.
+    await deps.reports.overwritePendingExecution(pending);
+  } else {
+    await deps.reports.putPendingExecution(pending);
+  }
   return pending;
 }
 
@@ -145,6 +160,7 @@ interface PublishContext {
   event: BiweeklyReportRequestedV1;
   execution: ReportExecutionItem;
   winners: Winner[];
+  forceRepublish: boolean;
   deps: RunReportDeps;
   log: Logger;
 }
@@ -153,10 +169,11 @@ async function ensurePublished({
   event,
   execution,
   winners,
+  forceRepublish,
   deps,
   log,
 }: PublishContext): Promise<ReportExecutionItem> {
-  if (execution.publicMessageTs) {
+  if (execution.publicMessageTs && !forceRepublish) {
     // Already posted on a prior invocation. Resume DM retries.
     return execution;
   }

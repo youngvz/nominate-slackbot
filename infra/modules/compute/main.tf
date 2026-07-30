@@ -1,19 +1,26 @@
 locals {
-  name_prefix = "${var.project}-${var.environment}"
+  name_prefix          = "${var.project}-${var.environment}"
+  report_function_name = "${local.name_prefix}-report"
 
   # Shared config injected into every Lambda. packages/configuration expects
   # this full set at cold start regardless of the function's role; scoping
   # environment variables per-Lambda used to trip loadEnv on ingress. The
   # secrets are still IAM-scoped per role, so a function that doesn't need a
   # given credential can't read it even though the ARN is present.
+  #
+  # REPORT_FUNCTION_NAME is read by the ingress Lambda's admin path
+  # (docs/03 §Admin surface). Other roles ignore it, and IAM (below) limits
+  # lambda:InvokeFunction on the report function to the ingress role.
   shared_env = {
     SLACK_SIGNING_SECRET_ARN     = var.slack_signing_secret_arn
     SLACK_BOT_TOKEN_ARN          = var.slack_bot_token_arn
     SLACK_RECOGNITION_CHANNEL_ID = var.recognition_channel_id
+    SLACK_MAINTAINER_IDS         = var.slack_maintainer_ids
     DYNAMODB_TABLE_NAME          = var.dynamodb_table_name
     NOMINATION_QUEUE_URL         = var.nomination_queue_url
     PROGRAM_TIMEZONE             = var.program_timezone
     PROGRAM_START_AT             = var.program_start_at
+    REPORT_FUNCTION_NAME         = local.report_function_name
   }
 
   functions = {
@@ -137,6 +144,14 @@ data "aws_iam_policy_document" "slack_ingress" {
       "dynamodb:Query",
     ]
     resources = [var.dynamodb_table_arn, var.dynamodb_gsi1_arn]
+  }
+
+  # /nominate-admin report path (docs/03 §Admin surface). Scoped to the report
+  # function only — the ingress never invokes any other Lambda.
+  statement {
+    effect    = "Allow"
+    actions   = ["lambda:InvokeFunction"]
+    resources = [aws_lambda_function.function["report"].arn]
   }
 }
 

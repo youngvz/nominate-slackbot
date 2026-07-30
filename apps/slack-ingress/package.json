@@ -19,6 +19,7 @@
     "@nominate/observability": "workspace:*",
     "@nominate/persistence": "workspace:*",
     "@nominate/slack": "workspace:*",
+    "@aws-sdk/client-lambda": "^3.630.0",
     "@aws-sdk/client-sqs": "^3.630.0"
   },
   "devDependencies": {

@@ -67,6 +67,12 @@ variable "recognition_channel_id" {
   type = string
 }
 
+variable "slack_maintainer_ids" {
+  description = "Comma-separated Slack user IDs allowed to invoke /nominate-admin (docs/02 §Maintainer authorization)."
+  type        = string
+  default     = ""
+}
+
 variable "program_timezone" {
   description = "IANA timezone used for program-facing scheduling."
   type        = string

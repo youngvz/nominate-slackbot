@@ -103,6 +103,10 @@ stateDiagram-v2
 
 *Anchored in `apps/report-job/src/runReport.ts` (`ensurePendingExecution`, `ensurePublished`, `deliverWinnerDms`) and `packages/persistence/src/repositories/ReportRepository.ts` (state field updates via conditional put + update).*
 
+## Admin on-demand runs
+
+`/nominate-admin report` (docs/03 §Admin surface) invokes the report Lambda outside the schedule for the current period, with `forceRepublish: true`. In that mode `runReport` unconditionally overwrites the execution row back to `PENDING`, re-posts to the recognition channel, and re-sends winner DMs. Scheduled EventBridge runs must never set `forceRepublish`; they continue to observe the state machine above and are idempotent across retries.
+
 ## Schedule failure behavior
 
 - EventBridge retries according to configured policy.

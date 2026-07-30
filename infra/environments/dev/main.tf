@@ -54,6 +54,7 @@ module "compute" {
   slack_signing_secret_arn = module.secrets.signing_secret_arn
   slack_bot_token_arn      = module.secrets.bot_token_arn
   recognition_channel_id   = var.recognition_channel_id
+  slack_maintainer_ids     = join(",", var.maintainer_slack_ids)
   log_retention_days       = var.log_retention_days
   tags                     = local.tags
 }

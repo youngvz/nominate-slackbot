@@ -16,6 +16,10 @@ export interface AppEnv {
   PROGRAM_START_AT: string;
   DYNAMODB_TABLE_NAME: string;
   NOMINATION_QUEUE_URL: string;
+  // Populated for the ingress Lambda so `/nominate-admin report` can invoke
+  // the report Lambda on demand. Other Lambdas set the same variable (the
+  // Terraform compute module uses a shared env block) but never read it.
+  REPORT_FUNCTION_NAME?: string;
 }
 
 function required(source: NodeJS.ProcessEnv, key: string, missing: string[]): string {
@@ -51,6 +55,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
   const SLACK_BOT_TOKEN_ARN = optional(source, "SLACK_BOT_TOKEN_ARN");
   const SLACK_SIGNING_SECRET = optional(source, "SLACK_SIGNING_SECRET");
   const SLACK_BOT_TOKEN = optional(source, "SLACK_BOT_TOKEN");
+  const REPORT_FUNCTION_NAME = optional(source, "REPORT_FUNCTION_NAME");
 
   if (!SLACK_SIGNING_SECRET_ARN && !SLACK_SIGNING_SECRET) {
     missing.push("SLACK_SIGNING_SECRET_ARN or SLACK_SIGNING_SECRET");
@@ -83,5 +88,6 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
     PROGRAM_START_AT,
     DYNAMODB_TABLE_NAME,
     NOMINATION_QUEUE_URL,
+    ...(REPORT_FUNCTION_NAME ? { REPORT_FUNCTION_NAME } : {}),
   };
 }
