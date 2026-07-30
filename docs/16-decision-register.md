@@ -36,6 +36,7 @@
 | Invalidation | Deferred; future invalidation restores eligibility immediately |
 | Content blocklist | Deferred |
 | Open source | Yes; company configuration and secrets remain external |
+| Terraform state and artifact buckets | Provisioned out-of-band; backend values gitignored (ADR-006) |
 
 ## Change control
 

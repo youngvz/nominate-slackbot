@@ -17,6 +17,10 @@
     "prepare": "husky",
     "dev": "pnpm -r --parallel --stream dev",
     "infra:validate": "bash scripts/infra-validate.sh",
+    "infra:destroy": "bash scripts/infra-destroy.sh",
+    "infra:bootstrap": "bash scripts/bootstrap-tfstate.sh",
+    "infra:artifacts": "bash scripts/bootstrap-artifacts.sh",
+    "infra:stub-lambdas": "bash scripts/upload-lambda-stubs.sh",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

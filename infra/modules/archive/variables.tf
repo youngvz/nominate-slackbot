@@ -22,9 +22,15 @@ variable "lifecycle_expiration_days" {
 }
 
 variable "authorized_role_arns" {
-  description = "Roles permitted to write to and read from the archive bucket."
+  description = "Roles permitted to access the archive bucket. All other principals are denied."
   type        = list(string)
   default     = []
+}
+
+variable "force_destroy" {
+  description = "Allow terraform destroy to remove a non-empty bucket. Dev only."
+  type        = bool
+  default     = false
 }
 
 variable "tags" {

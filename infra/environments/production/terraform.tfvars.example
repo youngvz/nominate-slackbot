@@ -9,3 +9,8 @@ artifact_bucket        = "example-artifacts-bucket"
 owner                  = "team-recognition"
 cost_center            = ""
 data_classification    = "Internal"
+
+# Production posture — stateful resources are protected.
+enable_deletion_protection = true
+force_destroy              = false
+log_retention_days         = 30

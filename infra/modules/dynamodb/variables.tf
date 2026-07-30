@@ -26,6 +26,12 @@ variable "enable_pitr" {
   default = true
 }
 
+variable "enable_deletion_protection" {
+  description = "Block terraform destroy of the table until this flag is flipped."
+  type        = bool
+  default     = false
+}
+
 variable "enable_scheduled_export" {
   type    = bool
   default = false

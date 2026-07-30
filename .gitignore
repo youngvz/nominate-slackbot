@@ -25,6 +25,11 @@ coverage
 *.tfstate
 *.tfstate.*
 *.tfplan
+# Partial backend configuration — real bucket/key values (including AWS
+# account IDs) live in backend.hcl next to each env's backend.tf. Only the
+# .example templates are tracked (docs/09 §Open-source controls).
+backend.hcl
+!backend.hcl.example
 crash.log
 crash.*.log
 
