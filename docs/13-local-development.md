@@ -30,7 +30,7 @@ Do not commit `.env`.
 ## Slack development setup
 
 The Slack app configuration is checked into `slack/manifest.json`. See
-`docs/17-slack-app-setup.md` for the full setup procedure — both the Slack
+`docs/18-slack-app-setup.md` for the full setup procedure — both the Slack
 CLI path and the dashboard path are documented.
 
 Summary:

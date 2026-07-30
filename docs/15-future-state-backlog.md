@@ -103,7 +103,7 @@ Not required for Phase 1 shipping. Consider promoting when the domain
 service touches eligibility logic in ways unit tests can't validate
 (e.g. relying on undocumented `users.info` fields, or when a real Slack
 error surface starts mattering for user-visible messaging). See
-`docs/17-slack-app-setup.md §When to use a Developer Program sandbox` for
+`docs/18-slack-app-setup.md §When to use a Developer Program sandbox` for
 the trade-off summary.
 
 ## Enhanced reporting

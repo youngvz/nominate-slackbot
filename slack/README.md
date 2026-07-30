@@ -5,7 +5,7 @@
 production Slack apps are all installed from this same manifest — only the
 request URLs and app name differ per environment.
 
-See `docs/17-slack-app-setup.md` for the setup procedure (dashboard flow and
+See `docs/18-slack-app-setup.md` for the setup procedure (dashboard flow and
 CLI flow both documented).
 
 Do **not** commit real request URLs, signing secrets, or bot tokens. The
