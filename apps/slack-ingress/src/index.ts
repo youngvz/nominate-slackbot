@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { loadEnv } from "@nominate/configuration";
+import { loadEnv, resolveSlackSecrets } from "@nominate/configuration";
 import { createLogger, type Logger } from "@nominate/observability";
 import { createSlackClient, type SlackClient, type SlashCommandPayload } from "@nominate/slack";
 import type { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2 } from "aws-lambda";
@@ -29,14 +29,7 @@ let cachedDeps: Deps | undefined;
 async function getDeps(): Promise<Deps> {
   if (cachedDeps) return cachedDeps;
   const env = loadEnv();
-  const signingSecret = env.SLACK_SIGNING_SECRET;
-  const botToken = env.SLACK_BOT_TOKEN;
-  if (!signingSecret) {
-    throw new Error("SLACK_SIGNING_SECRET must be resolved before handling requests");
-  }
-  if (!botToken) {
-    throw new Error("SLACK_BOT_TOKEN must be resolved before handling requests");
-  }
+  const { signingSecret, botToken } = await resolveSlackSecrets(env);
   const logger = createLogger({
     service: env.SERVICE_NAME,
     environment: env.NODE_ENV,
