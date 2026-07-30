@@ -2,6 +2,7 @@ import { TransactionCanceledException } from "@aws-sdk/client-dynamodb";
 import {
   type DynamoDBDocumentClient,
   GetCommand,
+  QueryCommand,
   TransactWriteCommand,
 } from "@aws-sdk/lib-dynamodb";
 import type { EligibilityItem, NominationItem, NominationResult } from "@nominate/domain";
@@ -9,7 +10,7 @@ import { computeNextEligibleAtEpoch } from "@nominate/domain";
 import { NotImplementedError } from "@nominate/observability";
 import { keys } from "../keys.js";
 import { toEligibilityDdbItem } from "../mappers/eligibility.js";
-import { toNominationDdbItem } from "../mappers/nomination.js";
+import { fromNominationDdbItem, toNominationDdbItem } from "../mappers/nomination.js";
 
 // docs/05 §Atomic nomination transaction + docs/02 §Concurrency rule.
 // Executes TransactWriteItems: put nomination + put/update eligibility with the
@@ -55,7 +56,7 @@ function eligibilityFrom(nomination: NominationItem): EligibilityItem {
 export function createNominationRepository(
   client: DynamoDBDocumentClient,
   tableName: string,
-  _gsi1Name: string,
+  gsi1Name: string,
 ): NominationRepository {
   return {
     async acceptNomination({ nomination, nowEpochMs }) {
@@ -117,8 +118,45 @@ export function createNominationRepository(
       throw new NotImplementedError("NominationRepository.findById");
     },
 
-    async queryByPeriod(_input) {
-      throw new NotImplementedError("NominationRepository.queryByPeriod");
+    async queryByPeriod({ workspaceId, periodStartEpochMs, periodEndEpochMs }) {
+      // docs/05 §Reporting index. GSI1SK is `{submittedAtEpochMs}#{nominationId}`,
+      // so a lexicographic `BETWEEN` over strings padded to the same width as the
+      // stored values yields the same order as numeric epoch-ms comparison. We
+      // exclude items exactly at periodEndEpochMs (docs/02 §Reporting periods).
+      const lower = keys.gsi1Sk(periodStartEpochMs, "");
+      const upper = keys.gsi1Sk(periodEndEpochMs, "");
+
+      const items: NominationItem[] = [];
+      let exclusiveStartKey: Record<string, unknown> | undefined;
+      do {
+        const res = await client.send(
+          new QueryCommand({
+            TableName: tableName,
+            IndexName: gsi1Name,
+            KeyConditionExpression:
+              "GSI1PK = :pk AND GSI1SK BETWEEN :lo AND :hi",
+            ExpressionAttributeValues: {
+              ":pk": keys.gsi1Pk(workspaceId),
+              ":lo": lower,
+              ":hi": upper,
+            },
+            ...(exclusiveStartKey ? { ExclusiveStartKey: exclusiveStartKey } : {}),
+          }),
+        );
+        for (const raw of res.Items ?? []) {
+          const item = fromNominationDdbItem(raw as Record<string, unknown>);
+          if (
+            item.submittedAtEpochMs >= periodStartEpochMs &&
+            item.submittedAtEpochMs < periodEndEpochMs
+          ) {
+            items.push(item);
+          }
+        }
+        exclusiveStartKey = res.LastEvaluatedKey as
+          | Record<string, unknown>
+          | undefined;
+      } while (exclusiveStartKey);
+      return items;
     },
   };
 }

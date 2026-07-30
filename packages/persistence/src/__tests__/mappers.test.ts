@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { EligibilityItem, NominationItem } from "@nominate/domain";
+import type {
+  EligibilityItem,
+  NominationItem,
+  ReportExecutionItem,
+} from "@nominate/domain";
 import { keys } from "../keys.js";
 import {
   fromEligibilityDdbItem,
@@ -9,6 +13,7 @@ import {
   fromNominationDdbItem,
   toNominationDdbItem,
 } from "../mappers/nomination.js";
+import { fromReportDdbItem, toReportDdbItem } from "../mappers/report.js";
 
 const nomination: NominationItem = {
   entityType: "NOMINATION",
@@ -68,5 +73,61 @@ describe("eligibility mapper", () => {
       keys.eligibilityPK(eligibility.workspaceId, eligibility.nominatorSlackId),
     );
     expect(raw.SK).toBe(keys.eligibilitySK(eligibility.recipientSlackId));
+  });
+});
+
+const reportPending: ReportExecutionItem = {
+  entityType: "REPORT_EXECUTION",
+  workspaceId: "T1",
+  periodStart: "2026-07-31T04:00:00.000Z",
+  periodEnd: "2026-08-14T16:00:00.000Z",
+  status: "PENDING",
+  winnerSlackIds: [],
+  countsBySlackId: {},
+  dmDeliveries: [],
+  retentionPolicy: "PUBLISHED_METADATA_INDEFINITE",
+};
+
+const reportPublished: ReportExecutionItem = {
+  entityType: "REPORT_EXECUTION",
+  workspaceId: "T1",
+  periodStart: "2026-07-31T04:00:00.000Z",
+  periodEnd: "2026-08-14T16:00:00.000Z",
+  status: "PUBLISHED",
+  winnerSlackIds: ["U_A", "U_B"],
+  countsBySlackId: { U_A: 3, U_B: 3, U_C: 1 },
+  publicMessageTs: "1725000000.000100",
+  publishedAt: "2026-08-14T16:00:01.000Z",
+  dmDeliveries: [
+    {
+      recipientSlackId: "U_A",
+      status: "SENT",
+      attempts: 1,
+      lastAttemptAt: "2026-08-14T16:00:02.000Z",
+    },
+    {
+      recipientSlackId: "U_B",
+      status: "FAILED_RETRYABLE",
+      attempts: 2,
+      lastAttemptAt: "2026-08-14T16:00:03.000Z",
+      lastError: "channel_not_found",
+    },
+  ],
+  retentionPolicy: "PUBLISHED_METADATA_INDEFINITE",
+};
+
+describe("report mapper", () => {
+  it("round-trips a PENDING execution row", () => {
+    expect(fromReportDdbItem(toReportDdbItem(reportPending))).toEqual(reportPending);
+  });
+
+  it("round-trips a PUBLISHED execution row with winners and delivery state", () => {
+    expect(fromReportDdbItem(toReportDdbItem(reportPublished))).toEqual(reportPublished);
+  });
+
+  it("populates PK/SK for the workspace and period", () => {
+    const raw = toReportDdbItem(reportPublished);
+    expect(raw.PK).toBe(keys.reportPK(reportPublished.workspaceId));
+    expect(raw.SK).toBe(keys.reportSK(reportPublished.periodStart));
   });
 });
