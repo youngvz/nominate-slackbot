@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { loadEnv, resolveBotToken, resolveSigningSecret } from "@nominate/configuration";
 import { createLogger, type Logger } from "@nominate/observability";
+import {
+  createDynamoClient,
+  createEligibilityRepository,
+  type EligibilityRepository,
+} from "@nominate/persistence";
 import { createSlackClient, type SlackClient, type SlashCommandPayload } from "@nominate/slack";
 import type { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 import { verifyRequest } from "./middleware/verifySignature.js";
@@ -18,9 +23,14 @@ import {
 interface Deps {
   slackClient: SlackClient;
   publisher: NominationPublisher;
+  eligibility: EligibilityRepository;
   signingSecret: string;
   logger: Logger;
+  // Slack request signatures use unix seconds — see docs/09 §Signature verification.
   now: () => number;
+  // Everything else that cares about wall time (eligibility, submittedAt) uses
+  // milliseconds. Keeping the two clocks separate avoids accidental mixing.
+  nowMs: () => number;
   nowIso: () => string;
 }
 
@@ -37,6 +47,10 @@ async function getDeps(): Promise<Deps> {
     service: env.SERVICE_NAME,
     environment: env.NODE_ENV,
   });
+  const dynamo = createDynamoClient({
+    region: env.AWS_REGION,
+    tableName: env.DYNAMODB_TABLE_NAME,
+  });
   cachedDeps = {
     slackClient: createSlackClient(botToken),
     publisher: createPublisherFromEnv({
@@ -44,9 +58,11 @@ async function getDeps(): Promise<Deps> {
       region: env.AWS_REGION,
       logger,
     }),
+    eligibility: createEligibilityRepository(dynamo, env.DYNAMODB_TABLE_NAME),
     signingSecret,
     logger,
     now: () => Math.floor(Date.now() / 1000),
+    nowMs: () => Date.now(),
     nowIso: () => new Date().toISOString(),
   };
   return cachedDeps;
@@ -92,7 +108,12 @@ export async function handleRequest(
         command: slashCommand.command,
       });
       try {
-        await handleSlashCommand(slashCommand, deps.slackClient);
+        await handleSlashCommand(slashCommand, {
+          slackClient: deps.slackClient,
+          eligibility: deps.eligibility,
+          logger: log,
+          nowMs: deps.nowMs,
+        });
         log.info("slash_command_handled", {
           eventType: "slash_command",
           outcome: "modal_opened",
@@ -163,7 +184,9 @@ async function handleInteractivePayload(
 
   const result = await handleViewSubmission(payload.view, ctx, {
     publisher: deps.publisher,
+    eligibility: deps.eligibility,
     logger: deps.logger,
+    now: deps.nowMs,
   });
 
   if (result.kind === "errors") {
