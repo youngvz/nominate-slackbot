@@ -141,8 +141,9 @@ Required initial bot scopes:
 - `commands`
 - `chat:write`
 - `users:read`
+- `im:write` — needed by the nomination worker's `conversations.open` call to open the DM channel it then posts feedback to. `chat:write` alone lets the bot post into an existing DM but not create one.
 
-Add `im:write` when required by the chosen Slack DM-opening implementation. Avoid broad channel-read scopes unless the application actually browses or validates channels through the Conversations API.
+Avoid broad channel-read scopes unless the application actually browses or validates channels through the Conversations API.
 
 The bot should be invited to the configured recognition channel rather than receiving broad permission to post to arbitrary public channels.
 

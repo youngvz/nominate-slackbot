@@ -478,7 +478,8 @@ URLs; see Path B above.
   manifest uses `https://REPLACE_ME.example/slack/events` placeholders.
   Substitution happens at install time.
 - Only add scopes when they're actually needed. Phase 1 needs exactly
-  `commands`, `chat:write`, `users:read` (`docs/03-slack-app-design.md`).
+  `commands`, `chat:write`, `users:read`, `im:write`
+  (`docs/03-slack-app-design.md`).
 - If you install a new dev app, re-run `slack app install` (Path A) or paste
   the manifest into the dashboard (Path B). Do not hand-edit settings out of
   band — the manifest should stay authoritative.
