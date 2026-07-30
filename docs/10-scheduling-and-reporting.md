@@ -79,6 +79,30 @@ Create a report execution item keyed by workspace and period start. Track:
 
 Persist the public Slack message timestamp and per-winner DM state.
 
+```mermaid
+stateDiagram-v2
+    [*] --> PENDING: ensurePendingExecution (conditional put)
+
+    PENDING --> PUBLISHED: channel post succeeded<br/>(record Slack ts)
+    PENDING --> FAILED: unrecoverable error<br/>before publication
+
+    PUBLISHED --> COMPLETED: all winner DMs delivered
+    PUBLISHED --> PARTIAL_DM_FAILURE: one or more DMs<br/>retryably failed
+
+    PARTIAL_DM_FAILURE --> COMPLETED: retry succeeds
+    PARTIAL_DM_FAILURE --> PARTIAL_DM_FAILURE: retry still partial
+
+    COMPLETED --> [*]
+    FAILED --> [*]
+
+    note right of PUBLISHED
+        Public message is not rolled back
+        if downstream DM delivery fails.
+    end note
+```
+
+*Anchored in `apps/report-job/src/runReport.ts` (`ensurePendingExecution`, `ensurePublished`, `deliverWinnerDms`) and `packages/persistence/src/repositories/ReportRepository.ts` (state field updates via conditional put + update).*
+
 ## Schedule failure behavior
 
 - EventBridge retries according to configured policy.
