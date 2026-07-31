@@ -1,4 +1,4 @@
-// Shared ESLint flat config for the nominate-slackbot monorepo.
+// Shared ESLint flat config for the KudosBot monorepo.
 // ESLint 9 requires flat config; see https://eslint.org/docs/latest/use/configure/migration-guide
 import js from "@eslint/js";
 import tsParser from "@typescript-eslint/parser";

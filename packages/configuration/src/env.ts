@@ -16,7 +16,7 @@ export interface AppEnv {
   PROGRAM_START_AT: string;
   DYNAMODB_TABLE_NAME: string;
   NOMINATION_QUEUE_URL: string;
-  // Populated for the ingress Lambda so `/nominate-admin report` can invoke
+  // Populated for the ingress Lambda so `/kudos-admin report` can invoke
   // the report Lambda on demand. Other Lambdas set the same variable (the
   // Terraform compute module uses a shared env block) but never read it.
   REPORT_FUNCTION_NAME?: string;

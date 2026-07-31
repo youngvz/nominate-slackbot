@@ -23,7 +23,7 @@ function slashCommandBody(overrides: Record<string, string> = {}): string {
     team_id: "T123",
     user_id: "U456",
     channel_id: "C789",
-    command: "/nominate",
+    command: "/kudos",
     text: "",
     trigger_id: "trig-123",
     response_url: "https://hooks.slack.example/response/xyz",
@@ -150,7 +150,7 @@ function makeDeps(overrides: Partial<Record<string, unknown>> = {}) {
 }
 
 describe("slack-ingress handler — slash command", () => {
-  it("acks 200 and opens the nominate modal on a valid /nominate slash command", async () => {
+  it("acks 200 and opens the nominate modal on a valid /kudos slash command", async () => {
     const deps = makeDeps();
     const body = slashCommandBody();
     const timestamp = deps.now();
@@ -258,13 +258,13 @@ describe("slack-ingress handler — slash command", () => {
   });
 });
 
-describe("slack-ingress handler — /nominate-admin", () => {
+describe("slack-ingress handler — /kudos-admin", () => {
   const REPORT_NOW_MS = Date.parse("2026-08-05T12:00:00.000Z");
 
   it("invokes the report Lambda with forceRepublish=true for a maintainer", async () => {
     const deps = makeDeps({ nowMs: () => REPORT_NOW_MS });
     const body = slashCommandBody({
-      command: "/nominate-admin",
+      command: "/kudos-admin",
       user_id: "U_ADMIN",
       text: "report",
     });
@@ -293,7 +293,7 @@ describe("slack-ingress handler — /nominate-admin", () => {
   it("rejects non-maintainers without invoking the report Lambda", async () => {
     const deps = makeDeps({ nowMs: () => REPORT_NOW_MS });
     const body = slashCommandBody({
-      command: "/nominate-admin",
+      command: "/kudos-admin",
       user_id: "U_OUTSIDER",
       text: "report",
     });
@@ -312,7 +312,7 @@ describe("slack-ingress handler — /nominate-admin", () => {
   it("returns a help/usage response for unknown subcommands", async () => {
     const deps = makeDeps({ nowMs: () => REPORT_NOW_MS });
     const body = slashCommandBody({
-      command: "/nominate-admin",
+      command: "/kudos-admin",
       user_id: "U_ADMIN",
       text: "nope",
     });
@@ -324,7 +324,7 @@ describe("slack-ingress handler — /nominate-admin", () => {
     expect(response.statusCode).toBe(200);
     const parsed = JSON.parse(response.body ?? "{}");
     expect(parsed.text).toMatch(/Unknown subcommand/i);
-    expect(parsed.text).toMatch(/\/nominate-admin report/);
+    expect(parsed.text).toMatch(/\/kudos-admin report/);
     expect(deps.invokeReport).not.toHaveBeenCalled();
   });
 
@@ -332,7 +332,7 @@ describe("slack-ingress handler — /nominate-admin", () => {
     const deps = makeDeps({ nowMs: () => REPORT_NOW_MS });
     deps.invokeReport.mockRejectedValueOnce(new Error("boom"));
     const body = slashCommandBody({
-      command: "/nominate-admin",
+      command: "/kudos-admin",
       user_id: "U_ADMIN",
       text: "report",
     });

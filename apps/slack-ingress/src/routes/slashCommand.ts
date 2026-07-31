@@ -29,7 +29,7 @@ export async function handleSlashCommand(
   });
 }
 
-// A stale/failed lookup should never break `/nominate` — the modal still opens
+// A stale/failed lookup should never break `/kudos` — the modal still opens
 // without the hint. Slack's trigger_id also expires in 3s, so we can't wait
 // forever if DynamoDB is slow.
 async function loadAlreadyRecognized(

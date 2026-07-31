@@ -4,7 +4,7 @@ import type { BiweeklyReportRequestedV1 } from "@nominate/contracts";
 import type { Logger } from "@nominate/observability";
 import type { SlashCommandPayload } from "@nominate/slack";
 
-// docs/03 §Admin surface. `/nominate-admin report` invokes the report Lambda
+// docs/03 §Admin surface. `/kudos-admin report` invokes the report Lambda
 // on demand with `forceRepublish: true` so demos can re-post the current
 // period regardless of prior state. Scheduled EventBridge runs never set that
 // flag and continue to honor the PUBLISHED idempotency guard.
@@ -140,5 +140,5 @@ function buildInvokedMessage(periodStartIso: string, periodEndIso: string): stri
 }
 
 function adminHelpText(): string {
-  return "Available subcommands: `/nominate-admin report` — publish the biweekly report for the current period on demand.";
+  return "Available subcommands: `/kudos-admin report` — publish the biweekly report for the current period on demand.";
 }

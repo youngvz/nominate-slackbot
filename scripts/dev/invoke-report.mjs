@@ -3,7 +3,7 @@
 // By default runs against the most-recently-closed period and sets
 // forceRepublish=true so the public message re-posts and winner DMs re-fire
 // even if the row is already PUBLISHED. This is the same shape the
-// /nominate-admin report path produces (apps/slack-ingress/src/queue/reportInvoker.ts).
+// /kudos-admin report path produces (apps/slack-ingress/src/queue/reportInvoker.ts).
 //
 // Usage:
 //   pnpm dev:report [--period-start ISO] [--period-end ISO]

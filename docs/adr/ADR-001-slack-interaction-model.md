@@ -6,7 +6,7 @@ Accepted.
 
 ## Decision
 
-Use `/nominate` as the primary entry point and open a structured Slack modal. Use production HTTP request URLs through API Gateway rather than Socket Mode.
+Use `/kudos` as the primary entry point and open a structured Slack modal. Use production HTTP request URLs through API Gateway rather than Socket Mode.
 
 ## Rationale
 

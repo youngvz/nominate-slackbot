@@ -97,7 +97,7 @@ The report Lambda's entry point accepts `unknown` and runs it through
 dispatching to `runReport`. EventBridge Scheduler is configured with no
 `input`, so it invokes with `{}`; the resolver fills the workspace from
 `REPORT_WORKSPACE_ID` and the period from `mostRecentClosedPeriod(now)`. The
-admin path (`/nominate-admin report`) sends the full envelope shown above and
+admin path (`/kudos-admin report`) sends the full envelope shown above and
 the resolver passes those fields through unchanged.
 
 ## Error contract

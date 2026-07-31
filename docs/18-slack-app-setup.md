@@ -1,7 +1,7 @@
 # Slack App Setup
 
 The Slack app configuration lives in `slack/manifest.json`. That file is the
-source of truth for scopes, the `/nominate` slash command, and the
+source of truth for scopes, the `/kudos` slash command, and the
 interactivity request URL. Whenever the Slack side needs to change (a new
 scope, a new interaction endpoint), edit the manifest, commit it, and re-apply
 it to the target workspace.
@@ -57,7 +57,7 @@ Three things about it change the CLI workflow versus a free single-workspace:
    `slack app install` installs at the org level (`is_enterprise_install:
    true` in `auth.test`). If the manifest says `org_deploy_enabled: false`,
    Slack registers the slash command with no valid dispatch target and
-   `/nominate` fails with `invalid_service` at runtime. Set it to `true`
+   `/kudos` fails with `invalid_service` at runtime. Set it to `true`
    for any Grid / sandbox target. On a free single-workspace it can be
    `false`. The checked-in `slack/manifest.json` uses `true` since sandbox
    is the current dev target.
@@ -265,24 +265,24 @@ end up on a branch.
 
 **b. Edit request URLs in the dashboard:**
 
-<https://api.slack.com/apps> → your app → **Slash Commands** → `/nominate`
+<https://api.slack.com/apps> → your app → **Slash Commands** → `/kudos`
 → set **Request URL** to `https://<tunnel>.ngrok-free.app/slack/events` →
 save. Same for **Interactivity & Shortcuts**. Faster for one-off tunnel
 rotations; if the manifest gains new fields later, the dashboard's manifest
 view will flag drift.
 
-### 7. Try `/nominate`
+### 7. Try `/kudos`
 
 Invite the bot to a channel in your sandbox workspace (`/invite @nominate`),
-then type `/nominate`. The modal should open. Troubleshooting:
+then type `/kudos`. The modal should open. Troubleshooting:
 
 - Server logs a `slash_command_received` and then `slash_command_handled`
   with `outcome: modal_opened`.
 - ngrok inspector at <http://127.0.0.1:4040> shows the POST arrive.
-- If Slack shows "`/nominate` failed with the error 'invalid_service'":
+- If Slack shows "`/kudos` failed with the error 'invalid_service'":
   see "Troubleshooting `invalid_service`" below — this is a Grid /
   sandbox-specific gotcha and is likely how your first install failed.
-- If Slack shows "`/nominate` failed with the error 'dispatch_failed'":
+- If Slack shows "`/kudos` failed with the error 'dispatch_failed'":
   the Request URL Slack has for the workspace's slash command doesn't
   match your tunnel. Re-check step 6b.
 - If the CLI fails at step 4 with an admin-approval error: approve the
@@ -309,7 +309,7 @@ Slack asks you to re-approve the app if a new scope was added.
 
 Symptoms:
 
-- `/nominate` in the Slack workspace returns `/nominate failed with the
+- `/kudos` in the Slack workspace returns `/kudos failed with the
   error "invalid_service"`.
 - Server logs show **zero** requests. ngrok inspector at
   <http://127.0.0.1:4040> shows **zero** requests. Slack never dispatched.
@@ -319,7 +319,7 @@ Cause: on Enterprise Grid orgs (including Developer Program sandboxes),
 `slack app install` installs the app at the **org level**. If the
 manifest has `settings.org_deploy_enabled: false`, Slack has an
 inconsistent state — org-installed app, but the manifest declares the
-app isn't meant for org deploy. Slack registers `/nominate` but has no
+app isn't meant for org deploy. Slack registers `/kudos` but has no
 valid dispatch target for the workspace's execution context, so it
 returns `invalid_service` before ever hitting the network.
 
@@ -337,7 +337,7 @@ Fix:
 3. The workspace-scoped slash-command URL may still hold the placeholder
    from the first install. Open
    `https://api.slack.com/apps/<App ID>/slash-commands`, click the
-   pencil next to `/nominate`, and confirm the Request URL matches your
+   pencil next to `/kudos`, and confirm the Request URL matches your
    tunnel. **The manifest push does not always overwrite a workspace's
    existing slash-command URL binding** — this is the second most common
    root cause when `invalid_service` persists.
@@ -415,7 +415,7 @@ Copy the HTTPS URL ngrok prints. The Slack ingress endpoint is at
 
 Back in the Slack app dashboard:
 
-- **Slash Commands** → edit `/nominate` → set **Request URL** to
+- **Slash Commands** → edit `/kudos` → set **Request URL** to
   `https://<tunnel>.ngrok-free.app/slack/events` → **Save**.
 - **Interactivity & Shortcuts** → **Request URL** →
   `https://<tunnel>.ngrok-free.app/slack/events` → **Save**.
@@ -424,9 +424,9 @@ If you'd rather do this via the manifest, update `slack/manifest.json` with
 the tunnel URL locally (do not commit this change) and paste it into
 **App Manifest** → **Save Changes**.
 
-### 5. Try `/nominate`
+### 5. Try `/kudos`
 
-In your dev workspace, invite the bot to a channel and run `/nominate`. The
+In your dev workspace, invite the bot to a channel and run `/kudos`. The
 modal should open. If not, check:
 
 - `ngrok` window shows the request.

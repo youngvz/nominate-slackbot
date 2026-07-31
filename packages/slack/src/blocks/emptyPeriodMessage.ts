@@ -4,7 +4,7 @@
 //
 // One variant is picked at random per invocation for a bit of warmth. All
 // variants are day-agnostic so admin on-demand runs read correctly at any
-// time; all share the same soft nudge to use `/nominate`.
+// time; all share the same soft nudge to use `/kudos`.
 
 interface EmptyVariant {
   body: string;
@@ -13,27 +13,27 @@ interface EmptyVariant {
 
 const EMPTY_VARIANTS: readonly EmptyVariant[] = [
   {
-    body: "No nominations this period — but there's always next time! Use `/nominate` to recognize a coworker.",
+    body: "No nominations this period — but there's always next time! Use `/kudos` to recognize a coworker.",
     footer: "Someone on your team is probably doing something worth calling out. 💛",
   },
   {
-    body: "Quiet period — no nominations came in. 🤔 Use `/nominate` to kick things off before the next report.",
+    body: "Quiet period — no nominations came in. 🤔 Use `/kudos` to kick things off before the next report.",
     footer: "It only takes a minute to make someone's week.",
   },
   {
-    body: "Crickets this period 🦗 — no nominations came in. Use `/nominate` to recognize a coworker; two weeks goes by fast.",
+    body: "Crickets this period 🦗 — no nominations came in. Use `/kudos` to recognize a coworker; two weeks goes by fast.",
     footer: "Small shoutouts count too.",
   },
   {
-    body: "Empty inbox this period. 📭 Use `/nominate` to give someone a shoutout — coworkers, teammates, that one person who saved the day.",
+    body: "Empty inbox this period. 📭 Use `/kudos` to give someone a shoutout — coworkers, teammates, that one person who saved the day.",
     footer: "Recognition compounds — start the streak. 💛",
   },
   {
-    body: "No nominations landed this period. Who's been quietly making things better? Use `/nominate` to say thanks.",
+    body: "No nominations landed this period. Who's been quietly making things better? Use `/kudos` to say thanks.",
     footer: "Great work often flies under the radar. Help us catch it. 💛",
   },
   {
-    body: "Nothing to report this period — but that doesn't mean nothing happened. ✨ Use `/nominate` to recognize a coworker.",
+    body: "Nothing to report this period — but that doesn't mean nothing happened. ✨ Use `/kudos` to recognize a coworker.",
     footer: "See you in two weeks.",
   },
 ];

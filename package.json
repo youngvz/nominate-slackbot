@@ -1,5 +1,5 @@
 {
-  "name": "nominate-slackbot",
+  "name": "kudosbot",
   "version": "0.0.0",
   "private": true,
   "description": "Internal Slack employee-recognition bot. See docs/ for authoritative behavior.",

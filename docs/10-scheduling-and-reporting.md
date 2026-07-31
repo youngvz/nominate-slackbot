@@ -14,7 +14,7 @@ Use EventBridge Scheduler timezone-aware schedules rather than converting these 
 
 - Runs every Friday at 9:00 AM local time.
 - Posts to the single configured recognition channel.
-- Encourages employees to use `/nominate`.
+- Encourages employees to use `/kudos`.
 - Uses an execution key derived from workspace and scheduled time.
 - A retry must not create a duplicate reminder.
 
@@ -123,7 +123,7 @@ gap:
 - `executionKey` — falls back to `${workspaceId}#${periodStart}` for log
   correlation and idempotency keying.
 
-Admin invocations (`/nominate-admin report`, docs/03 §Admin surface) send a
+Admin invocations (`/kudos-admin report`, docs/03 §Admin surface) send a
 fully-populated envelope with `forceRepublish: true`; the resolver returns
 those values unchanged. Every retry — scheduled or admin — hits the same
 idempotency guards in `runReport` regardless of the resolution path.
@@ -142,7 +142,7 @@ period stays half-open per §First period.
 
 ## Admin on-demand runs
 
-`/nominate-admin report` (docs/03 §Admin surface) invokes the report Lambda outside the schedule for the current period, with `forceRepublish: true`. In that mode `runReport` unconditionally overwrites the execution row back to `PENDING`, re-posts to the recognition channel, and re-sends winner DMs. Scheduled EventBridge runs must never set `forceRepublish`; they continue to observe the state machine above and are idempotent across retries.
+`/kudos-admin report` (docs/03 §Admin surface) invokes the report Lambda outside the schedule for the current period, with `forceRepublish: true`. In that mode `runReport` unconditionally overwrites the execution row back to `PENDING`, re-posts to the recognition channel, and re-sends winner DMs. Scheduled EventBridge runs must never set `forceRepublish`; they continue to observe the state machine above and are idempotent across retries.
 
 ## Schedule failure behavior
 

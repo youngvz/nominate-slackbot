@@ -55,7 +55,7 @@ pnpm dev:nominate --nominator U0BLBBN69CP --recipient U0BLQNZPR8W
 
 Invokes the report Lambda with a `BiweeklyReportRequestedV1` envelope. By
 default it targets the most-recently-closed period and sets
-`forceRepublish=true`, matching the `/nominate-admin report` path.
+`forceRepublish=true`, matching the `/kudos-admin report` path.
 
 The winner (highest nomination count in the period) gets a DM listing every
 description their nominators wrote — this is the DM under test.

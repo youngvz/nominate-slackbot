@@ -117,7 +117,7 @@ works — pick one:
 
 - **Install:** `brew install awscli` or see
   <https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html>.
-- **Configure:** `aws configure --profile nominate-dev` (or your naming
+- **Configure:** `aws configure --profile kudos-dev` (or your naming
   convention). Required when actually calling AWS — the local dev shim
   publishes to `stdout://` by default and does not touch AWS, but the
   `pnpm dev:*` helper scripts under [`scripts/dev/`](../scripts/dev/README.md)
