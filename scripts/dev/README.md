@@ -103,6 +103,60 @@ pnpm dev:period --full                          # detail table with full descrip
 pnpm dev:period --format json
 ```
 
+## clear-eligibility.mjs → `pnpm dev:clear-eligibility`
+
+Delete a `PAIR_ELIGIBILITY` row so a nominator can re-nominate immediately.
+NOMINATION rows are untouched — the historical count stays intact.
+
+Dev-only; refuses `--env production`. Two-phase — prints the plan without
+`--yes`, deletes only when you pass `--yes`.
+
+```
+pnpm dev:clear-eligibility --nominator U0BLQNZCN22 --recipient U0BMM35KL72
+pnpm dev:clear-eligibility --nominator U0BLQNZCN22 --recipient U0BMM35KL72 --yes
+pnpm dev:clear-eligibility --nominator U0BLQNZCN22 --all --yes    # clear every recipient
+```
+
+## reset-period.mjs → `pnpm dev:reset-period`
+
+Nuclear demo reset for a window: deletes every NOMINATION in the window, every
+PAIR_ELIGIBILITY row anchored on any nominator in that window, and the
+REPORT_EXECUTION row for the period.
+
+Dev-only; refuses `--env production`. Two-phase — prints the plan without
+`--yes`, deletes only when you pass `--yes`.
+
+```
+pnpm dev:reset-period                # current open period (plan only)
+pnpm dev:reset-period --closed       # most-recently-closed
+pnpm dev:reset-period --closed --yes # execute
+pnpm dev:reset-period --period-start ISO --period-end ISO --yes
+```
+
+## invoke-reminder.mjs → `pnpm dev:reminder`
+
+Invokes the reminder Lambda directly with the shape EventBridge Scheduler
+would send at Friday 9 AM ET. Bot posts the weekly reminder in the
+recognition channel.
+
+```
+pnpm dev:reminder            # async (matches scheduled path)
+pnpm dev:reminder --sync     # wait for the Lambda + print tail logs
+```
+
+## tail-logs.mjs → `pnpm dev:tail`
+
+Follows CloudWatch logs for all four dev Lambdas at once with a color-coded
+prefix per source. Wraps `aws logs tail --follow`; requires the AWS CLI.
+
+```
+pnpm dev:tail                # all four
+pnpm dev:tail --only worker  # substring match: ingress | worker | report | reminder
+pnpm dev:tail --since 30m    # rewind before tailing (default 5m)
+```
+
+Ctrl-C stops all children.
+
 ## End-to-end DM smoke test
 
 ```bash

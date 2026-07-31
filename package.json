@@ -29,7 +29,11 @@
     "dev:report": "node scripts/dev/invoke-report.mjs",
     "dev:users": "node scripts/dev/list-users.mjs",
     "dev:period": "node scripts/dev/inspect-period.mjs",
-    "dev:recipient": "node scripts/dev/inspect-recipient.mjs"
+    "dev:recipient": "node scripts/dev/inspect-recipient.mjs",
+    "dev:clear-eligibility": "node scripts/dev/clear-eligibility.mjs",
+    "dev:reset-period": "node scripts/dev/reset-period.mjs",
+    "dev:reminder": "node scripts/dev/invoke-reminder.mjs",
+    "dev:tail": "node scripts/dev/tail-logs.mjs"
   },
   "devDependencies": {
     "@aws-sdk/client-dynamodb": "^3.630.0",
