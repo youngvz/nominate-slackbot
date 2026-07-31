@@ -121,6 +121,17 @@ scripts/      # Bootstrap and dev-only operational scripts
 
 Everything is serverless and scale-to-zero — no long-running servers, no VPC, no NAT. Cost floor is essentially the DynamoDB PITR baseline. Each environment (`dev`, `production`) stands up an isolated copy of the stack; Terraform state is per-environment, keyed inside a shared S3 backend.
 
+```text
+   Slack  ─▶  API Gateway  ─▶  slack-ingress  ─▶  SQS  ─▶  nomination-worker  ─▶  DynamoDB
+     ▲                                                                                │
+     │                                                                                │
+     │   channel posts + winner DMs                                                   │
+     │                                                                                │
+     └──  reminder-job  ◀──  EventBridge Scheduler  ─▶  report-job  ◀──  queries  ────┘
+```
+
+Two flows: `/kudos` submissions go through API Gateway and a durable SQS handoff before touching DynamoDB, and EventBridge fires the reminder + report Lambdas on a fixed weekly/biweekly cadence. Full topology with secrets, DLQ, observability, and IAM lives in [`docs/04-system-architecture.md`](docs/04-system-architecture.md#selected-architecture); an AWS-icon companion for slide-friendly rendering is at [`docs/diagrams/topology-aws.drawio`](docs/diagrams/topology-aws.drawio), and the full diagram index (submission sequence, report state machine, DynamoDB entity view) is at [`docs/19-diagrams.md`](docs/19-diagrams.md).
+
 ### What gets provisioned
 
 | Concern          | Resources                                                                                                                                                                              |
@@ -133,10 +144,6 @@ Everything is serverless and scale-to-zero — no long-running servers, no VPC, 
 | Observability    | CloudWatch log groups per Lambda with explicit retention, DLQ depth alarms, and structured JSON logs. Descriptions and tokens are never logged.                                        |
 
 Each Lambda has its own IAM role with the minimum policies it needs (`docs/07` §IAM boundaries). Full resource inventory and the reasoning behind each choice: [`docs/07-aws-infrastructure.md`](docs/07-aws-infrastructure.md).
-
-### System topology
-
-The full mermaid diagram — every Lambda, queue, table, schedule, and secret with the paths between them — is in [`docs/04-system-architecture.md`](docs/04-system-architecture.md#selected-architecture). An AWS-icon companion for slide-friendly rendering lives at [`docs/diagrams/topology-aws.drawio`](docs/diagrams/topology-aws.drawio) (open in [app.diagrams.net](https://app.diagrams.net/) or the draw.io desktop app). The full diagram index — including the `/kudos` submission sequence, the report execution state machine, and the DynamoDB entity view — is at [`docs/19-diagrams.md`](docs/19-diagrams.md).
 
 ### Terraform layout
 
