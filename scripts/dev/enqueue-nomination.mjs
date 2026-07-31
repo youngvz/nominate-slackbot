@@ -12,6 +12,7 @@
 import { randomUUID } from "node:crypto";
 import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
 import { LambdaClient, GetFunctionConfigurationCommand } from "@aws-sdk/client-lambda";
+import { projectFor } from "./lib/project.mjs";
 
 const DEFAULT_DESCRIPTION =
   "Test nomination submitted via scripts/dev/enqueue-nomination.mjs.";
@@ -91,7 +92,7 @@ async function main() {
   const description = args.description ?? DEFAULT_DESCRIPTION;
   const env = args.env ?? "dev";
   const region = process.env.AWS_REGION ?? "us-east-1";
-  const workerName = `nominate-slackbot-${env}-nomination-worker`;
+  const workerName = `${projectFor(env)}-${env}-nomination-worker`;
 
   const lambdaEnv = await fetchLambdaEnv(workerName, region);
   const queueUrl = lambdaEnv.NOMINATION_QUEUE_URL;
@@ -145,7 +146,7 @@ async function main() {
         correlationId,
         idempotencyKey,
         sqsMessageId: res.MessageId,
-        note: "Watch CloudWatch logs for `nominate-slackbot-<env>-nomination-worker`; nominator receives DM.",
+        note: `Watch CloudWatch logs for \`${workerName}\`; nominator receives DM.`,
       },
       null,
       2,

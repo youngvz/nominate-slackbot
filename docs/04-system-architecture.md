@@ -39,10 +39,10 @@ flowchart TD
     Report -->|chat.postMessage + winner DMs| SlackAPI
 
     classDef planned stroke-dasharray: 5 5,stroke-width:1px
-    class Reminder,S3 planned
+    class S3 planned
 ```
 
-*Legend: dashed borders mark planned pieces not yet implemented (`reminder-job` handler is a stub; S3 archive export path is scaffolding). Dotted arrows denote secret material fetched at cold start and the future DDB export.*
+*Legend: dashed borders mark planned pieces not yet implemented (the S3 archive export path is scaffolding). Dotted arrows denote secret material fetched at cold start and the future DDB export.*
 
 ## Service responsibilities
 

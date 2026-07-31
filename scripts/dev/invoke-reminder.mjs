@@ -8,6 +8,7 @@
 //   pnpm dev:reminder --sync    # RequestResponse + tail logs
 
 import { LambdaClient, InvokeCommand, GetFunctionConfigurationCommand } from "@aws-sdk/client-lambda";
+import { projectFor } from "./lib/project.mjs";
 
 function parseArgs(argv) {
   const out = { env: "dev", sync: false };
@@ -64,7 +65,7 @@ async function main() {
   }
   const env = args.env ?? "dev";
   const region = process.env.AWS_REGION ?? "us-east-1";
-  const functionName = `nominate-slackbot-${env}-reminder`;
+  const functionName = `${projectFor(env)}-${env}-reminder`;
   const lambdaEnv = await fetchLambdaEnv(functionName, region);
   const workspaceId = lambdaEnv.REPORT_WORKSPACE_ID;
 

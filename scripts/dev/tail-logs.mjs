@@ -14,12 +14,13 @@
 //   pnpm dev:tail --env dev|production
 
 import { spawn } from "node:child_process";
+import { projectFor } from "./lib/project.mjs";
 
 const APPS = [
-  { key: "ingress",  logGroup: (env) => `/aws/lambda/nominate-slackbot-${env}-slack-ingress`,     prefix: "INGRESS  ", color: "\x1b[36m" }, // cyan
-  { key: "worker",   logGroup: (env) => `/aws/lambda/nominate-slackbot-${env}-nomination-worker`, prefix: "WORKER   ", color: "\x1b[35m" }, // magenta
-  { key: "report",   logGroup: (env) => `/aws/lambda/nominate-slackbot-${env}-report`,            prefix: "REPORT   ", color: "\x1b[33m" }, // yellow
-  { key: "reminder", logGroup: (env) => `/aws/lambda/nominate-slackbot-${env}-reminder`,          prefix: "REMINDER ", color: "\x1b[32m" }, // green
+  { key: "ingress",  logGroup: (env) => `/aws/lambda/${projectFor(env)}-${env}-slack-ingress`,     prefix: "INGRESS  ", color: "\x1b[36m" }, // cyan
+  { key: "worker",   logGroup: (env) => `/aws/lambda/${projectFor(env)}-${env}-nomination-worker`, prefix: "WORKER   ", color: "\x1b[35m" }, // magenta
+  { key: "report",   logGroup: (env) => `/aws/lambda/${projectFor(env)}-${env}-report`,            prefix: "REPORT   ", color: "\x1b[33m" }, // yellow
+  { key: "reminder", logGroup: (env) => `/aws/lambda/${projectFor(env)}-${env}-reminder`,          prefix: "REMINDER ", color: "\x1b[32m" }, // green
 ];
 const RESET = "\x1b[0m";
 
