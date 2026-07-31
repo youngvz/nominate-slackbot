@@ -83,8 +83,22 @@ interface BiweeklyReportRequestedV1 {
   periodStart: string;
   periodEnd: string;
   executionKey: string;
+  // Optional. Set only by admin-triggered on-demand runs
+  // (docs/03 §Admin surface); scheduled EventBridge runs never set this.
+  // When true, runReport overwrites the execution row back to PENDING and
+  // re-posts the public message + winner DMs, bypassing the PUBLISHED
+  // idempotency guard for demo purposes.
+  forceRepublish?: boolean;
 }
 ```
+
+The report Lambda's entry point accepts `unknown` and runs it through
+`resolveReportEvent` (`apps/report-job/src/resolveReportEvent.ts`) before
+dispatching to `runReport`. EventBridge Scheduler is configured with no
+`input`, so it invokes with `{}`; the resolver fills the workspace from
+`REPORT_WORKSPACE_ID` and the period from `mostRecentClosedPeriod(now)`. The
+admin path (`/nominate-admin report`) sends the full envelope shown above and
+the resolver passes those fields through unchanged.
 
 ## Error contract
 

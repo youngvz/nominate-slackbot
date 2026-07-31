@@ -88,6 +88,17 @@ Eligibility conflicts discovered after submission should be returned privately t
 
 The ingress Lambda performs an eligibility pre-check on `view_submission` and returns `response_action=errors` under the recipient block when the same pair is still inside the 14-day window. This keeps the user's typed description intact so they can swap recipients without retyping. The worker still enforces the same rule atomically through the DynamoDB conditional in `TransactWriteItems` (docs/05 §Eligibility lock) — that guard covers the race where two rapid submissions both pass the pre-check.
 
+## Admin surface
+
+`/nominate-admin` is a maintainer-only slash command. Only Slack user IDs in `SLACK_MAINTAINER_IDS` can invoke it; every other caller receives an ephemeral rejection. Responses are ephemeral (rendered inline via `response_type: "ephemeral"` on the immediate slash-command response) — no `chat.postEphemeral` scope needed.
+
+Subcommands (Phase 1):
+
+- `/nominate-admin report` — publish the biweekly report for the current period on demand. The ingress Lambda asynchronously invokes the report Lambda with `BiweeklyReportRequestedV1 { forceRepublish: true, ...currentPeriod }`. The report Lambda overwrites any existing `REPORT_EXECUTION` row for that period back to `PENDING`, re-posts to the recognition channel, and re-sends winner DMs. This is an intentional exception to the "never re-publish" idempotency rule; scheduled EventBridge runs never set `forceRepublish` and continue to honor it.
+- `/nominate-admin` with no subcommand or `help` — returns usage.
+
+The route uses `periodContaining(now)` (packages/domain) to compute the active reporting period, so admin invocations always target the currently-open window. Custom period ranges are backlog work.
+
 ## Response visibility
 
 | Outcome | Visibility |

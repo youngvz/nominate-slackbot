@@ -23,6 +23,19 @@ PROGRAM_TIMEZONE=America/New_York
 PROGRAM_START_AT=2026-07-31T00:00:00-04:00
 DYNAMODB_TABLE_NAME=
 NOMINATION_QUEUE_URL=
+# Ingress-only, optional. When unset, `/nominate-admin report` logs the
+# invocation and returns success without actually calling the report Lambda —
+# useful for local development where the report function isn't deployed.
+REPORT_FUNCTION_NAME=
+# Optional dev-only override for the first-report anchor. When unset, the
+# domain uses the production 2026-08-14T12:00-04:00 anchor. Set alongside
+# PROGRAM_START_AT to shift the first reporting period earlier so pre-launch
+# test nominations fall inside a real window (docs/10 §First period).
+FIRST_REPORT_AT=
+# Report-job only. Target Slack workspace ID (T…) used when EventBridge
+# fires the scheduled biweekly report with an empty payload
+# (docs/10 §Scheduled input contract). Not read by other Lambdas.
+REPORT_WORKSPACE_ID=
 ```
 
 Do not commit `.env`.

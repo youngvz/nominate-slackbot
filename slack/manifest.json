@@ -9,6 +9,11 @@
     "background_color": "#2c3e50"
   },
   "features": {
+    "app_home": {
+      "home_tab_enabled": false,
+      "messages_tab_enabled": true,
+      "messages_tab_read_only_enabled": false
+    },
     "bot_user": {
       "display_name": "nominate",
       "always_online": false
@@ -19,6 +24,13 @@
         "url": "https://REPLACE_ME.example/slack/events",
         "description": "Recognize a coworker.",
         "usage_hint": "opens the nomination form",
+        "should_escape": false
+      },
+      {
+        "command": "/nominate-admin",
+        "url": "https://REPLACE_ME.example/slack/events",
+        "description": "Maintainer admin actions (report on demand).",
+        "usage_hint": "report",
         "should_escape": false
       }
     ]

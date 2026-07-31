@@ -4,6 +4,9 @@
 export interface SlashCommandPayload {
   type: "slash_command";
   command: string;
+  // Slack's `text` field: everything after the command, verbatim. Used by
+  // admin commands to parse subcommands (docs/03 §Admin surface).
+  text: string;
   teamId: string;
   userId: string;
   channelId?: string;
