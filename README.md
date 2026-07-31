@@ -1,4 +1,4 @@
-# nominate-slackbot
+# KudosBot
 
 Internal Slack employee-recognition bot. Employees invoke `/kudos`, pick a coworker, and submit a recognition; weekly reminders and biweekly reports are published automatically.
 
