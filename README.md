@@ -38,6 +38,24 @@ The `prepare` script wires up Husky hooks automatically.
 | `pnpm format` / `pnpm format:check` | Prettier write / check. |
 | `pnpm infra:validate` | `terraform fmt -check` + `terraform validate` across `infra/modules` and `infra/environments`. |
 
+### Dev-only helper scripts
+
+Direct-invoke helpers for the deployed dev Lambdas. Full docs in
+[`scripts/dev/README.md`](scripts/dev/README.md); destructive commands
+refuse `--env production` and require `--yes` to actually mutate.
+
+| Command | What it does |
+|---|---|
+| `pnpm dev:users` | Lists Slack workspace users via `users.list`. |
+| `pnpm dev:nominate` | Enqueues a nomination on the dev SQS queue. |
+| `pnpm dev:report` | Invokes the report Lambda (`--sync` for tail logs). |
+| `pnpm dev:reminder` | Invokes the reminder Lambda directly. |
+| `pnpm dev:period` | Read-only preview: counts + winners for a window. |
+| `pnpm dev:recipient` | Read-only: nominations for one recipient in a window. |
+| `pnpm dev:clear-eligibility` | Deletes a `PAIR_ELIGIBILITY` row so a pair can re-nominate. |
+| `pnpm dev:reset-period` | Wipes nominations + eligibility + report for a window. |
+| `pnpm dev:tail` | Follows all four dev Lambdas' CloudWatch logs at once. |
+
 ### Git hooks
 
 Husky enforces the same checks in source control (bypass with `--no-verify` only when you have a specific reason):

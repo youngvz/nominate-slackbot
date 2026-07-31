@@ -83,9 +83,37 @@ pnpm infra:destroy <dev|production>     # production requires --yes-really-produ
 
 The actual package manager may differ, but one tool should be standardized across the monorepo. Every `infra:*` script beyond `validate` requires an AWS session; see `docs/14` §First stand-up for the run order.
 
-## Testing scheduled jobs locally
+## Dev helper scripts
 
-Allow reminder and report handlers to accept explicit scheduled timestamps and period boundaries in development. Production schedule events remain authoritative.
+Direct-invoke helpers under `scripts/dev/` exercise deployed dev Lambdas
+without going through the Slack UI. Every script reads live env values
+(queue URL, workspace ID, secret ARNs, reporting anchors) via
+`GetFunctionConfiguration` on the target Lambda, so nothing drifts from
+what's actually deployed. Destructive commands refuse `--env production`
+and require `--yes` to mutate.
+
+| Command | Category | What it does |
+|---|---|---|
+| `pnpm dev:users` | read | Lists Slack workspace users via `users.list`. |
+| `pnpm dev:nominate` | write | Enqueues a `NominationSubmissionRequestedV1` on the dev SQS queue. Default recipient = first `SLACK_MAINTAINER_IDS`. |
+| `pnpm dev:report` | invoke | Invokes the report Lambda with a `BiweeklyReportRequestedV1`. `--sync` returns tail logs; `forceRepublish=true` by default. |
+| `pnpm dev:reminder` | invoke | Invokes the reminder Lambda directly. |
+| `pnpm dev:period` | read | Preview a report over a window: counts by recipient, max, tied winners. |
+| `pnpm dev:recipient` | read | Nominations to a recipient in a window with nominator IDs; descriptions truncated per `docs/09` unless `--full`. |
+| `pnpm dev:clear-eligibility` | destructive | Deletes a `PAIR_ELIGIBILITY` row so a pair can re-nominate immediately. NOMINATION rows untouched. |
+| `pnpm dev:reset-period` | destructive | Wipes NOMINATION + PAIR_ELIGIBILITY + REPORT_EXECUTION rows for a window. |
+| `pnpm dev:tail` | read | Follows all four dev Lambdas' CloudWatch logs concurrently, color-coded per source. |
+
+Full flag reference and usage examples live in
+[`scripts/dev/README.md`](../scripts/dev/README.md).
+
+### Testing scheduled jobs
+
+Reminder and report handlers accept explicit scheduled timestamps and
+period boundaries so on-demand runs are indistinguishable from scheduled
+ones at the code path level. Use `pnpm dev:reminder` / `pnpm dev:report`
+above to fire either handler with a live payload; production schedule
+events remain authoritative.
 
 ## Troubleshooting
 

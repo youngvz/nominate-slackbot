@@ -80,6 +80,12 @@ Logs may include:
 - Correlation ID.
 - Latency and dependency status.
 
+Operator dev tooling (`scripts/dev/`) may print nomination descriptions to
+the operator's terminal when explicitly requested with `--full`; the
+default is truncation to the first 40 characters, and this exception is
+scoped to interactive dev use against non-production workspaces. It does
+not permit descriptions in application logs, exports, or shared channels.
+
 ## Data retention
 
 - DynamoDB nomination data: one year.
