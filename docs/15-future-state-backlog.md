@@ -123,20 +123,27 @@ Requirements should include:
 
 ## Maintainer administration
 
-Potential capabilities:
+On-demand biweekly report republish is already implemented as
+`/kudos-admin report` (`apps/slack-ingress/src/routes/adminReport.ts`).
+
+Remaining potential capabilities:
 
 - View nomination metadata.
 - Trace a description to a nominator for misconduct review.
-- Invalidate and restore nominations.
-- Retry failed winner DMs.
-- Change channel, schedule, and timezone.
+- Invalidate and restore nominations (see **Nomination invalidation** above for the approved domain behavior).
+- Retry failed winner DMs on demand (the report Lambda already re-attempts on the next execution — this is about surfacing a manual retry).
+- Change channel, schedule, and timezone at runtime rather than via `terraform apply`.
 - Review report execution history.
 
 ## Additional Slack entry points
 
+`/kudos-admin` already covers the administrative slash command entry
+point (`slack/manifest.json`).
+
+Remaining entry points to consider:
+
 - Message shortcut that pre-populates context from a Slack message.
-- App Home nomination entry point.
-- Optional administrative slash command.
+- App Home nomination entry point (`home_tab_enabled` is currently `false` in the manifest).
 
 ## Multi-workspace distribution
 
@@ -190,6 +197,25 @@ workflow needs:
 
 Promote when we want to remove the "manual `terraform apply`" step from
 `docs/14 §Deployment order`.
+
+## Align bootstrap and upload script defaults with the new project name
+
+Historical context: production was renamed from `nominate-slackbot` to
+`kudosbot` in July 2026. Dev was left on the old name to avoid a
+destructive re-provision. The scripts under `scripts/` that build
+resource names — `bootstrap-tfstate.sh`, `bootstrap-artifacts.sh`,
+`upload-lambda-stubs.sh`, `upload-lambdas.sh` — still default to
+`PROJECT="${PROJECT:-nominate-slackbot}"`. Prod-scoped invocations
+therefore need an explicit `PROJECT=kudosbot` prefix.
+
+Dev-only helper scripts (`scripts/dev/*.mjs`) already resolve per-env
+via `scripts/dev/lib/project.mjs`, so this backlog item is scoped to
+the four bootstrap/upload shell scripts.
+
+When to promote: either (a) dev is also renamed to `kudosbot` (then
+flip the defaults and delete the env-map from `project.mjs`), or (b)
+we grow tired of typing `PROJECT=kudosbot` for prod operations (then
+introduce the same per-env resolution in the shell scripts).
 
 ## Enhanced reporting
 

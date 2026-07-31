@@ -10,6 +10,7 @@
 //                   [--no-force] [--sync] [--env dev|production]
 
 import { LambdaClient, InvokeCommand, GetFunctionConfigurationCommand } from "@aws-sdk/client-lambda";
+import { projectFor } from "./lib/project.mjs";
 
 // Duplicated from packages/domain/src/value/ReportingPeriod.ts to avoid a
 // build dependency; must stay in sync with the deployed Lambda's env.
@@ -99,7 +100,7 @@ async function main() {
 
   const env = args.env ?? "dev";
   const region = process.env.AWS_REGION ?? "us-east-1";
-  const functionName = `nominate-slackbot-${env}-report`;
+  const functionName = `${projectFor(env)}-${env}-report`;
 
   const lambdaEnv = await fetchLambdaEnv(functionName, region);
   const workspaceId = lambdaEnv.REPORT_WORKSPACE_ID;

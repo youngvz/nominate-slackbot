@@ -16,6 +16,7 @@ import {
   QueryCommand,
 } from "@aws-sdk/lib-dynamodb";
 import { fetchLambdaEnv } from "./lib/nominations.mjs";
+import { projectFor } from "./lib/project.mjs";
 
 function parseArgs(argv) {
   const out = { env: "dev", yes: false, all: false };
@@ -87,7 +88,7 @@ async function main() {
 
   const env = args.env ?? "dev";
   const region = process.env.AWS_REGION ?? "us-east-1";
-  const functionName = `nominate-slackbot-${env}-report`;
+  const functionName = `${projectFor(env)}-${env}-report`;
   const lambdaEnv = await fetchLambdaEnv(functionName, region);
   const tableName = lambdaEnv.DYNAMODB_TABLE_NAME;
   const workspaceId = lambdaEnv.REPORT_WORKSPACE_ID;
