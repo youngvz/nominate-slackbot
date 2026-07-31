@@ -68,7 +68,7 @@ variable "recognition_channel_id" {
 }
 
 variable "slack_maintainer_ids" {
-  description = "Comma-separated Slack user IDs allowed to invoke /nominate-admin (docs/02 §Maintainer authorization)."
+  description = "Comma-separated Slack user IDs allowed to invoke /kudos-admin (docs/02 §Maintainer authorization)."
   type        = string
   default     = ""
 }

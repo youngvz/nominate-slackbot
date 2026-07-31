@@ -132,7 +132,7 @@
         <mxCell id="e-user-apigw" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=2;fontFamily=Helvetica;endArrow=classic;endFill=1;" edge="1" parent="1" source="users-container" target="svc-apigw">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e-user-apigw-label" value="/nominate" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];labelBackgroundColor=none;fontFamily=Helvetica;fontSize=11;" connectable="0" vertex="1" parent="e-user-apigw">
+        <mxCell id="e-user-apigw-label" value="/kudos" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];labelBackgroundColor=none;fontFamily=Helvetica;fontSize=11;" connectable="0" vertex="1" parent="e-user-apigw">
           <mxGeometry relative="1" x="-0.3" as="geometry"><mxPoint as="offset" /></mxGeometry>
         </mxCell>
 
@@ -272,7 +272,7 @@
         <mxCell id="step-1-badge-legend" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#007CBD;strokeColor=default;fontColor=#FFFFFF;fontStyle=1;fontSize=22;labelBackgroundColor=none;fontFamily=Helvetica;shadow=1;glass=0;strokeWidth=2;" value="1" vertex="1" parent="step-1-legend">
           <mxGeometry height="38" width="40" y="2" as="geometry" />
         </mxCell>
-        <mxCell id="step-1-desc" style="text;html=1;align=left;verticalAlign=top;spacingTop=-4;fontSize=14;labelBackgroundColor=none;whiteSpace=wrap;fontFamily=Helvetica;" value="&lt;div&gt;&lt;b&gt;Signed slash command&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;color: light-dark(rgb(0,0,0), rgb(255,255,255));&quot;&gt;Employee runs /nominate; Slack POSTs the signed request to API Gateway HTTP API.&lt;/span&gt;&lt;/div&gt;" vertex="1" parent="step-1-legend">
+        <mxCell id="step-1-desc" style="text;html=1;align=left;verticalAlign=top;spacingTop=-4;fontSize=14;labelBackgroundColor=none;whiteSpace=wrap;fontFamily=Helvetica;" value="&lt;div&gt;&lt;b&gt;Signed slash command&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;color: light-dark(rgb(0,0,0), rgb(255,255,255));&quot;&gt;Employee runs /kudos; Slack POSTs the signed request to API Gateway HTTP API.&lt;/span&gt;&lt;/div&gt;" vertex="1" parent="step-1-legend">
           <mxGeometry height="70" width="508" x="52" as="geometry" />
         </mxCell>
 

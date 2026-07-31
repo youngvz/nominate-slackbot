@@ -4,8 +4,8 @@
     "minor_version": 1
   },
   "display_information": {
-    "name": "Nominate (dev)",
-    "description": "Employee recognition bot — development app.",
+    "name": "KudosBot",
+    "description": "Employee recognition bot",
     "background_color": "#2c3e50"
   },
   "features": {
@@ -15,19 +15,19 @@
       "messages_tab_read_only_enabled": false
     },
     "bot_user": {
-      "display_name": "nominate",
+      "display_name": "KudosBot",
       "always_online": false
     },
     "slash_commands": [
       {
-        "command": "/nominate",
+        "command": "/kudos",
         "url": "https://REPLACE_ME.example/slack/events",
         "description": "Recognize a coworker.",
         "usage_hint": "opens the nomination form",
         "should_escape": false
       },
       {
-        "command": "/nominate-admin",
+        "command": "/kudos-admin",
         "url": "https://REPLACE_ME.example/slack/events",
         "description": "Maintainer admin actions (report on demand).",
         "usage_hint": "report",

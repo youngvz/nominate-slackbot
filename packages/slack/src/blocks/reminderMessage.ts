@@ -5,7 +5,7 @@
 // workspace member.
 export function buildReminderMessage(): { text: string; blocks: unknown[] } {
   const summary =
-    "Weekly nudge — who impressed you this week? Use `/nominate` to recognize a coworker.";
+    "Weekly nudge — who impressed you this week? Use `/kudos` to recognize a coworker.";
   return {
     text: summary,
     blocks: [

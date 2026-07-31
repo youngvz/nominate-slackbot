@@ -204,8 +204,8 @@ describe("runReport", () => {
     const post = h.slack.postMessage.mock.calls[0]![0] as { text: string };
     // Empty-period copy is picked at random from a pool of variants; assert
     // on shared structural traits instead of a single substring. All variants
-    // point users at /nominate and none of them contain a winner mention.
-    expect(post.text).toContain("/nominate");
+    // point users at /kudos and none of them contain a winner mention.
+    expect(post.text).toContain("/kudos");
     expect(post.text).not.toMatch(/<@U[A-Z0-9]+>/);
     expect(h.slack.openDm).not.toHaveBeenCalled();
     expect(h.reports.updateDmDelivery).not.toHaveBeenCalled();

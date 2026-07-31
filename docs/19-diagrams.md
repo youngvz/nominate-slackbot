@@ -10,7 +10,7 @@ Every mermaid fence renders natively on GitHub, VS Code, and most markdown viewe
   All four Lambdas, SQS + DLQ, DynamoDB, EventBridge, Secrets Manager, and the planned S3 archive. Dashed pieces are stubs.
   Companion AWS-icon version: [`diagrams/topology-aws.drawio`](./diagrams/topology-aws.drawio) — open in draw.io desktop or at [app.diagrams.net](https://app.diagrams.net/).
 
-- **`/nominate` submission sequence** — [`03-slack-app-design.md`](./03-slack-app-design.md#submission-sequence)
+- **`/kudos` submission sequence** — [`03-slack-app-design.md`](./03-slack-app-design.md#submission-sequence)
   End-to-end golden path from slash command through SQS handoff, transact-write, and feedback DM. Failure branches (invalid description, repeat-window rejection) are folded in as `alt` blocks.
 
 - **Report execution state machine** — [`10-scheduling-and-reporting.md`](./10-scheduling-and-reporting.md#idempotency-state)

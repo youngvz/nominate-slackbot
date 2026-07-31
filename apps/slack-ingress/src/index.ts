@@ -122,7 +122,7 @@ export async function handleRequest(
         workspaceId: slashCommand.teamId,
         command: slashCommand.command,
       });
-      if (slashCommand.command === "/nominate-admin") {
+      if (slashCommand.command === "/kudos-admin") {
         return handleAdminSlashCommand(slashCommand, deps, log);
       }
       try {
@@ -156,7 +156,7 @@ export async function handleRequest(
   return { statusCode: 200, body: "" };
 }
 
-// docs/03 §Admin surface. `/nominate-admin` responds inline (ephemeral) with
+// docs/03 §Admin surface. `/kudos-admin` responds inline (ephemeral) with
 // the outcome text instead of using response_url — the outbound path is
 // synchronous with the request and doesn't need a second HTTP hop.
 async function handleAdminSlashCommand(

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This repository implements an internal Slack employee-recognition bot. Employees invoke `/nominate`, select an eligible coworker, and provide a recognition description. The system prevents self-nominations and repeat nominations from the same nominator to the same recipient within a rolling 14-day window. It sends weekly reminders and publishes biweekly results.
+This repository implements an internal Slack employee-recognition bot. Employees invoke `/kudos`, select an eligible coworker, and provide a recognition description. The system prevents self-nominations and repeat nominations from the same nominator to the same recipient within a rolling 14-day window. It sends weekly reminders and publishes biweekly results.
 
 ## Authoritative decisions
 

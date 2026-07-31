@@ -150,7 +150,7 @@ data "aws_iam_policy_document" "slack_ingress" {
     resources = [var.dynamodb_table_arn, var.dynamodb_gsi1_arn]
   }
 
-  # /nominate-admin report path (docs/03 §Admin surface). Scoped to the report
+  # /kudos-admin report path (docs/03 §Admin surface). Scoped to the report
   # function only — the ingress never invokes any other Lambda.
   statement {
     effect    = "Allow"

@@ -1,6 +1,6 @@
 # nominate-slackbot
 
-Internal Slack employee-recognition bot. Employees invoke `/nominate`, pick a coworker, and submit a recognition; weekly reminders and biweekly reports are published automatically.
+Internal Slack employee-recognition bot. Employees invoke `/kudos`, pick a coworker, and submit a recognition; weekly reminders and biweekly reports are published automatically.
 
 Authoritative behavior lives under [`docs/`](docs/) — start with [`CLAUDE.md`](CLAUDE.md) for context routing.
 

@@ -13,7 +13,7 @@ Create an internal Slack workflow that makes employee recognition easy within ex
 
 ## Primary workflow
 
-1. An employee invokes `/nominate` from a channel or DM.
+1. An employee invokes `/kudos` from a channel or DM.
 2. The bot opens a Slack modal.
 3. The employee selects a recipient using Slack's user selector.
 4. The employee enters a required recognition description.
@@ -28,7 +28,7 @@ Create an internal Slack workflow that makes employee recognition easy within ex
 
 ### Nomination submission
 
-- `/nominate` is the primary entry point.
+- `/kudos` is the primary entry point.
 - The command opens a modal rather than parsing free-form command arguments.
 - Recipient selection uses a Slack `users_select` element.
 - The recognition description is required, plain text, trimmed, and 10 to 1,000 characters.

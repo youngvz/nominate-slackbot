@@ -1,7 +1,7 @@
 # Slack app manifests
 
 `manifest.json` is the source of truth for the Slack app configuration
-(scopes, `/nominate` slash command, interactivity URL). The dev, staging, and
+(scopes, `/kudos` slash command, interactivity URL). The dev, staging, and
 production Slack apps are all installed from this same manifest — only the
 request URLs and app name differ per environment.
 

@@ -22,7 +22,7 @@ import { runReport, type RunReportDeps } from "./runReport.js";
 // Two invocation paths land here:
 //   1. Scheduled (EventBridge) — payload is `{}`; resolveReportEvent fills in
 //      workspace + just-closed period from env + wall clock.
-//   2. Admin on-demand (/nominate-admin report) — payload is a full envelope
+//   2. Admin on-demand (/kudos-admin report) — payload is a full envelope
 //      with forceRepublish=true; resolveReportEvent passes it through as-is.
 
 interface HandlerDeps extends RunReportDeps {

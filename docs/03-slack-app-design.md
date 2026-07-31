@@ -2,7 +2,7 @@
 
 ## Interaction model
 
-Phase 1 uses Slack HTTP request URLs and `/nominate` as the primary entry point.
+Phase 1 uses Slack HTTP request URLs and `/kudos` as the primary entry point.
 
 ### Slash command flow
 
@@ -16,7 +16,7 @@ If the eligibility lookup fails or is slow, the modal still opens without the hi
 
 ### Submission sequence
 
-End-to-end flow from `/nominate` invocation through modal submission, SQS handoff, atomic write, and feedback DM. Failure branches (invalid description, repeat-window rejection) are folded in as `alt` blocks.
+End-to-end flow from `/kudos` invocation through modal submission, SQS handoff, atomic write, and feedback DM. Failure branches (invalid description, repeat-window rejection) are folded in as `alt` blocks.
 
 ```mermaid
 sequenceDiagram
@@ -29,7 +29,7 @@ sequenceDiagram
     participant Worker as nomination-worker
     participant DDB as DynamoDB
 
-    Employee->>Slack: /nominate
+    Employee->>Slack: /kudos
     Slack->>APIGW: signed slash command
     APIGW->>Ingress: POST /slack/events
     Ingress->>Ingress: verify signature + replay window
@@ -90,12 +90,12 @@ The ingress Lambda performs an eligibility pre-check on `view_submission` and re
 
 ## Admin surface
 
-`/nominate-admin` is a maintainer-only slash command. Only Slack user IDs in `SLACK_MAINTAINER_IDS` can invoke it; every other caller receives an ephemeral rejection. Responses are ephemeral (rendered inline via `response_type: "ephemeral"` on the immediate slash-command response) — no `chat.postEphemeral` scope needed.
+`/kudos-admin` is a maintainer-only slash command. Only Slack user IDs in `SLACK_MAINTAINER_IDS` can invoke it; every other caller receives an ephemeral rejection. Responses are ephemeral (rendered inline via `response_type: "ephemeral"` on the immediate slash-command response) — no `chat.postEphemeral` scope needed.
 
 Subcommands (Phase 1):
 
-- `/nominate-admin report` — publish the biweekly report for the current period on demand. The ingress Lambda asynchronously invokes the report Lambda with `BiweeklyReportRequestedV1 { forceRepublish: true, ...currentPeriod }`. The report Lambda overwrites any existing `REPORT_EXECUTION` row for that period back to `PENDING`, re-posts to the recognition channel, and re-sends winner DMs. This is an intentional exception to the "never re-publish" idempotency rule; scheduled EventBridge runs never set `forceRepublish` and continue to honor it.
-- `/nominate-admin` with no subcommand or `help` — returns usage.
+- `/kudos-admin report` — publish the biweekly report for the current period on demand. The ingress Lambda asynchronously invokes the report Lambda with `BiweeklyReportRequestedV1 { forceRepublish: true, ...currentPeriod }`. The report Lambda overwrites any existing `REPORT_EXECUTION` row for that period back to `PENDING`, re-posts to the recognition channel, and re-sends winner DMs. This is an intentional exception to the "never re-publish" idempotency rule; scheduled EventBridge runs never set `forceRepublish` and continue to honor it.
+- `/kudos-admin` with no subcommand or `help` — returns usage.
 
 The route uses `periodContaining(now)` (packages/domain) to compute the active reporting period, so admin invocations always target the currently-open window. Custom period ranges are backlog work.
 
@@ -146,7 +146,7 @@ Maintainer Slack IDs are supplied as a configuration list, for example:
 SLACK_MAINTAINER_IDS=U123456,U789012
 ```
 
-Anyone may use `/nominate`. Maintainer privileges are reserved for current or future administrative operations and audit access.
+Anyone may use `/kudos`. Maintainer privileges are reserved for current or future administrative operations and audit access.
 
 ## OAuth scopes
 
