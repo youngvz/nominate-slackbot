@@ -22,6 +22,7 @@ import {
   queryNominationsInWindow,
   renderDescription,
 } from "./lib/nominations.mjs";
+import { projectFor } from "./lib/project.mjs";
 
 function parseArgs(argv) {
   const out = { env: "dev", format: "table", full: false };
@@ -94,7 +95,7 @@ async function main() {
   }
   const env = args.env ?? "dev";
   const region = process.env.AWS_REGION ?? "us-east-1";
-  const functionName = `nominate-slackbot-${env}-report`;
+  const functionName = `${projectFor(env)}-${env}-report`;
   const lambdaEnv = await fetchLambdaEnv(functionName, region);
   const recipient =
     args.recipient ?? firstMaintainerId(lambdaEnv.SLACK_MAINTAINER_IDS);

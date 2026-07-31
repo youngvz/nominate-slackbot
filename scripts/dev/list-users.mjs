@@ -13,6 +13,7 @@
 
 import { LambdaClient, GetFunctionConfigurationCommand } from "@aws-sdk/client-lambda";
 import { SecretsManagerClient, GetSecretValueCommand } from "@aws-sdk/client-secrets-manager";
+import { projectFor } from "./lib/project.mjs";
 
 const PAGE_LIMIT = 200;
 
@@ -129,7 +130,7 @@ async function main() {
 
   const env = args.env ?? "dev";
   const region = process.env.AWS_REGION ?? "us-east-1";
-  const functionName = `nominate-slackbot-${env}-report`;
+  const functionName = `${projectFor(env)}-${env}-report`;
 
   const lambdaEnv = await fetchLambdaEnv(functionName, region);
   const teamId = args.workspace ?? lambdaEnv.REPORT_WORKSPACE_ID;
