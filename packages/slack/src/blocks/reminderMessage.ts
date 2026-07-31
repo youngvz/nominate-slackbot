@@ -1,9 +1,11 @@
 // docs/10 §Weekly reminder. Short, encouraging nudge posted to the recognition
-// channel every Friday. No secrets, no user-specific data — the same copy for
-// every workspace member.
+// channel on the scheduled cadence. Copy is day-agnostic so admin on-demand
+// runs and dev invocations don't post a message that contradicts the day it
+// was sent. No secrets, no user-specific data — the same copy for every
+// workspace member.
 export function buildReminderMessage(): { text: string; blocks: unknown[] } {
   const summary =
-    "Friday nudge — who impressed you this week? Use `/nominate` to recognize a coworker.";
+    "Weekly nudge — who impressed you this week? Use `/kudos` to recognize a coworker.";
   return {
     text: summary,
     blocks: [

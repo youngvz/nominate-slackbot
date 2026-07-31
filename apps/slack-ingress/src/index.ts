@@ -1,15 +1,25 @@
 import { randomUUID } from "node:crypto";
 import { loadEnv, resolveBotToken, resolveSigningSecret } from "@nominate/configuration";
 import { createLogger, type Logger } from "@nominate/observability";
+import {
+  createDynamoClient,
+  createEligibilityRepository,
+  type EligibilityRepository,
+} from "@nominate/persistence";
 import { createSlackClient, type SlackClient, type SlashCommandPayload } from "@nominate/slack";
 import type { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 import { verifyRequest } from "./middleware/verifySignature.js";
+import { handleAdminCommand, type AdminReportInvoker } from "./routes/adminReport.js";
 import { handleSlashCommand } from "./routes/slashCommand.js";
 import { handleViewSubmission, type ViewSubmissionContext } from "./routes/viewSubmission.js";
 import {
   createPublisherFromEnv,
   type NominationPublisher,
 } from "./queue/publisher.js";
+import {
+  createLambdaReportInvoker,
+  createStubReportInvoker,
+} from "./queue/reportInvoker.js";
 
 // Entry point for the API Gateway HTTP API. docs/04 §Slack ingress Lambda:
 // preserve the raw body, verify signature, acknowledge within Slack's trigger
@@ -18,9 +28,16 @@ import {
 interface Deps {
   slackClient: SlackClient;
   publisher: NominationPublisher;
+  reportInvoker: AdminReportInvoker;
+  eligibility: EligibilityRepository;
   signingSecret: string;
+  maintainerAllowlist: readonly string[];
   logger: Logger;
+  // Slack request signatures use unix seconds — see docs/09 §Signature verification.
   now: () => number;
+  // Everything else that cares about wall time (eligibility, submittedAt) uses
+  // milliseconds. Keeping the two clocks separate avoids accidental mixing.
+  nowMs: () => number;
   nowIso: () => string;
 }
 
@@ -37,6 +54,16 @@ async function getDeps(): Promise<Deps> {
     service: env.SERVICE_NAME,
     environment: env.NODE_ENV,
   });
+  const dynamo = createDynamoClient({
+    region: env.AWS_REGION,
+    tableName: env.DYNAMODB_TABLE_NAME,
+  });
+  const reportInvoker = env.REPORT_FUNCTION_NAME
+    ? createLambdaReportInvoker({
+        functionName: env.REPORT_FUNCTION_NAME,
+        region: env.AWS_REGION,
+      })
+    : createStubReportInvoker(logger);
   cachedDeps = {
     slackClient: createSlackClient(botToken),
     publisher: createPublisherFromEnv({
@@ -44,9 +71,13 @@ async function getDeps(): Promise<Deps> {
       region: env.AWS_REGION,
       logger,
     }),
+    reportInvoker,
+    eligibility: createEligibilityRepository(dynamo, env.DYNAMODB_TABLE_NAME),
     signingSecret,
+    maintainerAllowlist: env.SLACK_MAINTAINER_IDS,
     logger,
     now: () => Math.floor(Date.now() / 1000),
+    nowMs: () => Date.now(),
     nowIso: () => new Date().toISOString(),
   };
   return cachedDeps;
@@ -91,8 +122,16 @@ export async function handleRequest(
         workspaceId: slashCommand.teamId,
         command: slashCommand.command,
       });
+      if (slashCommand.command === "/kudos-admin") {
+        return handleAdminSlashCommand(slashCommand, deps, log);
+      }
       try {
-        await handleSlashCommand(slashCommand, deps.slackClient);
+        await handleSlashCommand(slashCommand, {
+          slackClient: deps.slackClient,
+          eligibility: deps.eligibility,
+          logger: log,
+          nowMs: deps.nowMs,
+        });
         log.info("slash_command_handled", {
           eventType: "slash_command",
           outcome: "modal_opened",
@@ -115,6 +154,33 @@ export async function handleRequest(
     contentType,
   });
   return { statusCode: 200, body: "" };
+}
+
+// docs/03 §Admin surface. `/kudos-admin` responds inline (ephemeral) with
+// the outcome text instead of using response_url — the outbound path is
+// synchronous with the request and doesn't need a second HTTP hop.
+async function handleAdminSlashCommand(
+  slashCommand: SlashCommandPayload,
+  deps: Deps,
+  log: Logger,
+): Promise<APIGatewayProxyStructuredResultV2> {
+  const result = await handleAdminCommand(slashCommand, {
+    invoker: deps.reportInvoker,
+    maintainerAllowlist: deps.maintainerAllowlist,
+    // response_url path is unused for now — kept in the interface so future
+    // long-running admin ops can push follow-up messages after the ack.
+    respond: async () => {},
+    logger: log,
+    now: deps.nowMs,
+  });
+  return {
+    statusCode: 200,
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      response_type: "ephemeral",
+      text: result.ephemeralText,
+    }),
+  };
 }
 
 async function handleInteractivePayload(
@@ -163,7 +229,9 @@ async function handleInteractivePayload(
 
   const result = await handleViewSubmission(payload.view, ctx, {
     publisher: deps.publisher,
+    eligibility: deps.eligibility,
     logger: deps.logger,
+    now: deps.nowMs,
   });
 
   if (result.kind === "errors") {
@@ -219,9 +287,11 @@ function parseSlashCommand(params: URLSearchParams): SlashCommandPayload | undef
     return undefined;
   }
   const channelId = params.get("channel_id") ?? undefined;
+  const text = params.get("text") ?? "";
   return {
     type: "slash_command",
     command,
+    text,
     teamId,
     userId,
     triggerId,

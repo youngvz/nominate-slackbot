@@ -9,9 +9,11 @@ import {
   type SlackClient,
 } from "@nominate/slack";
 import { createLogger } from "@nominate/observability";
+import type { EligibilityRepository } from "@nominate/persistence";
 import type { APIGatewayProxyEventV2 } from "aws-lambda";
 import { handleRequest } from "../index.js";
 import type { NominationPublisher } from "../queue/publisher.js";
+import type { AdminReportInvoker } from "../routes/adminReport.js";
 
 const SECRET = "test-signing-secret";
 
@@ -21,7 +23,7 @@ function slashCommandBody(overrides: Record<string, string> = {}): string {
     team_id: "T123",
     user_id: "U456",
     channel_id: "C789",
-    command: "/nominate",
+    command: "/kudos",
     text: "",
     trigger_id: "trig-123",
     response_url: "https://hooks.slack.example/response/xyz",
@@ -119,21 +121,36 @@ function makeDeps(overrides: Partial<Record<string, unknown>> = {}) {
   };
   const publish = vi.fn().mockResolvedValue({ messageId: "msg-1" });
   const publisher: NominationPublisher = { publish };
+  const invokeReport = vi.fn().mockResolvedValue(undefined);
+  const reportInvoker: AdminReportInvoker = { invokeReport };
+  const eligibilityFind = vi.fn().mockResolvedValue(null);
+  const eligibilityList = vi.fn().mockResolvedValue([]);
+  const eligibility: EligibilityRepository = {
+    find: eligibilityFind,
+    listByNominator: eligibilityList,
+  };
   return {
     slackClient,
     openView,
     publisher,
     publish,
+    reportInvoker,
+    invokeReport,
+    eligibility,
+    eligibilityFind,
+    eligibilityList,
     signingSecret: SECRET,
+    maintainerAllowlist: ["U_ADMIN"] as readonly string[],
     logger: createLogger({ service: "test", environment: "test" }),
     now: () => 1_800_000_000,
+    nowMs: () => 1_800_000_000_000,
     nowIso: () => "2026-08-01T12:00:00.000Z",
     ...overrides,
   };
 }
 
 describe("slack-ingress handler — slash command", () => {
-  it("acks 200 and opens the nominate modal on a valid /nominate slash command", async () => {
+  it("acks 200 and opens the nominate modal on a valid /kudos slash command", async () => {
     const deps = makeDeps();
     const body = slashCommandBody();
     const timestamp = deps.now();
@@ -148,6 +165,71 @@ describe("slack-ingress handler — slash command", () => {
     const view = call.view as { type: string; callback_id: string };
     expect(view.type).toBe("modal");
     expect(view.callback_id).toBe(NOMINATE_CALLBACK_ID);
+  });
+
+  it("renders an 'already recognized' hint above the picker when active eligibility rows exist", async () => {
+    const nowMs = Date.parse("2026-08-01T12:00:00.000Z");
+    const deps = makeDeps({ nowMs: () => nowMs });
+    deps.eligibilityList.mockResolvedValue([
+      {
+        entityType: "ELIGIBILITY",
+        workspaceId: "T123",
+        nominatorSlackId: "U456",
+        recipientSlackId: "U_A",
+        nominationId: "N-A",
+        acceptedAt: "2026-07-30T12:00:00.000Z",
+        nextEligibleAt: "2026-08-13T12:00:00.000Z",
+        nextEligibleAtEpoch: Date.parse("2026-08-13T12:00:00.000Z"),
+        ttl: 0,
+      },
+      {
+        entityType: "ELIGIBILITY",
+        workspaceId: "T123",
+        nominatorSlackId: "U456",
+        recipientSlackId: "U_B",
+        nominationId: "N-B",
+        acceptedAt: "2026-07-05T12:00:00.000Z",
+        nextEligibleAt: "2026-07-19T12:00:00.000Z",
+        nextEligibleAtEpoch: Date.parse("2026-07-19T12:00:00.000Z"),
+        ttl: 0,
+      },
+    ]);
+    const body = slashCommandBody();
+    const timestamp = deps.now();
+    const event = buildEvent(body, timestamp, sign(timestamp, body));
+
+    const response = await handleRequest(event, deps);
+
+    expect(response.statusCode).toBe(200);
+    expect(deps.eligibilityList).toHaveBeenCalledWith({
+      workspaceId: "T123",
+      nominatorSlackId: "U456",
+    });
+    const call = deps.openView.mock.calls[0]![0];
+    const view = call.view as { blocks: Array<{ type: string; elements?: Array<{ text?: string }> }> };
+    const contextBlock = view.blocks.find((b) => b.type === "context");
+    expect(contextBlock, "expected a context hint block").toBeDefined();
+    const hint = contextBlock!.elements![0]!.text!;
+    expect(hint).toMatch(/<@U_A>/);
+    expect(hint).toMatch(/Aug 13/);
+    // U_B eligibility already expired; must not appear in the hint.
+    expect(hint).not.toMatch(/<@U_B>/);
+  });
+
+  it("still opens the modal when the eligibility hint lookup throws", async () => {
+    const deps = makeDeps();
+    deps.eligibilityList.mockRejectedValue(new Error("dynamo down"));
+    const body = slashCommandBody();
+    const timestamp = deps.now();
+    const event = buildEvent(body, timestamp, sign(timestamp, body));
+
+    const response = await handleRequest(event, deps);
+
+    expect(response.statusCode).toBe(200);
+    expect(deps.openView).toHaveBeenCalledTimes(1);
+    const call = deps.openView.mock.calls[0]![0];
+    const view = call.view as { blocks: Array<{ type: string }> };
+    expect(view.blocks.find((b) => b.type === "context")).toBeUndefined();
   });
 
   it("returns 401 when the signature is invalid", async () => {
@@ -173,6 +255,95 @@ describe("slack-ingress handler — slash command", () => {
 
     expect(response.statusCode).toBe(400);
     expect(deps.openView).not.toHaveBeenCalled();
+  });
+});
+
+describe("slack-ingress handler — /kudos-admin", () => {
+  const REPORT_NOW_MS = Date.parse("2026-08-05T12:00:00.000Z");
+
+  it("invokes the report Lambda with forceRepublish=true for a maintainer", async () => {
+    const deps = makeDeps({ nowMs: () => REPORT_NOW_MS });
+    const body = slashCommandBody({
+      command: "/kudos-admin",
+      user_id: "U_ADMIN",
+      text: "report",
+    });
+    const timestamp = deps.now();
+    const event = buildEvent(body, timestamp, sign(timestamp, body));
+
+    const response = await handleRequest(event, deps);
+
+    expect(response.statusCode).toBe(200);
+    const parsed = JSON.parse(response.body ?? "{}");
+    expect(parsed.response_type).toBe("ephemeral");
+    expect(parsed.text).toMatch(/on-demand report/i);
+    expect(deps.invokeReport).toHaveBeenCalledTimes(1);
+    const invoked = deps.invokeReport.mock.calls[0]![0];
+    expect(invoked.eventType).toBe("report.biweekly.requested");
+    expect(invoked.schemaVersion).toBe(1);
+    expect(invoked.workspaceId).toBe("T123");
+    expect(invoked.forceRepublish).toBe(true);
+    expect(invoked.periodStart).toBe("2026-07-31T04:00:00.000Z");
+    expect(invoked.periodEnd).toBe("2026-08-14T16:00:00.000Z");
+    expect(invoked.executionKey).toMatch(/^T123#2026-07-31T04:00:00\.000Z#admin-/);
+    // Modal-open should not be called on an admin command.
+    expect(deps.openView).not.toHaveBeenCalled();
+  });
+
+  it("rejects non-maintainers without invoking the report Lambda", async () => {
+    const deps = makeDeps({ nowMs: () => REPORT_NOW_MS });
+    const body = slashCommandBody({
+      command: "/kudos-admin",
+      user_id: "U_OUTSIDER",
+      text: "report",
+    });
+    const timestamp = deps.now();
+    const event = buildEvent(body, timestamp, sign(timestamp, body));
+
+    const response = await handleRequest(event, deps);
+
+    expect(response.statusCode).toBe(200);
+    const parsed = JSON.parse(response.body ?? "{}");
+    expect(parsed.response_type).toBe("ephemeral");
+    expect(parsed.text).toMatch(/maintainer allowlist/i);
+    expect(deps.invokeReport).not.toHaveBeenCalled();
+  });
+
+  it("returns a help/usage response for unknown subcommands", async () => {
+    const deps = makeDeps({ nowMs: () => REPORT_NOW_MS });
+    const body = slashCommandBody({
+      command: "/kudos-admin",
+      user_id: "U_ADMIN",
+      text: "nope",
+    });
+    const timestamp = deps.now();
+    const event = buildEvent(body, timestamp, sign(timestamp, body));
+
+    const response = await handleRequest(event, deps);
+
+    expect(response.statusCode).toBe(200);
+    const parsed = JSON.parse(response.body ?? "{}");
+    expect(parsed.text).toMatch(/Unknown subcommand/i);
+    expect(parsed.text).toMatch(/\/kudos-admin report/);
+    expect(deps.invokeReport).not.toHaveBeenCalled();
+  });
+
+  it("returns an error ephemeral when the report invocation fails", async () => {
+    const deps = makeDeps({ nowMs: () => REPORT_NOW_MS });
+    deps.invokeReport.mockRejectedValueOnce(new Error("boom"));
+    const body = slashCommandBody({
+      command: "/kudos-admin",
+      user_id: "U_ADMIN",
+      text: "report",
+    });
+    const timestamp = deps.now();
+    const event = buildEvent(body, timestamp, sign(timestamp, body));
+
+    const response = await handleRequest(event, deps);
+
+    expect(response.statusCode).toBe(200);
+    const parsed = JSON.parse(response.body ?? "{}");
+    expect(parsed.text).toMatch(/Report invocation failed/i);
   });
 });
 
@@ -230,6 +401,64 @@ describe("slack-ingress handler — view_submission", () => {
     expect(parsed.response_action).toBe("errors");
     expect(parsed.errors[NOMINATE_DESCRIPTION_BLOCK_ID]).toMatch(/short|minimum/i);
     expect(deps.publish).not.toHaveBeenCalled();
+  });
+
+  it("rejects when the same recipient is still in the 14-day window and does not publish", async () => {
+    const nowMs = Date.parse("2026-08-01T12:00:00.000Z");
+    const deps = makeDeps({ nowMs: () => nowMs });
+    deps.eligibilityFind.mockResolvedValue({
+      entityType: "ELIGIBILITY",
+      workspaceId: "T_TEAM",
+      nominatorSlackId: "U_NOMINATOR",
+      recipientSlackId: "U_RECIPIENT",
+      nominationId: "N-prev",
+      acceptedAt: "2026-07-30T12:00:00.000Z",
+      nextEligibleAt: "2026-08-13T12:00:00.000Z",
+      nextEligibleAtEpoch: Date.parse("2026-08-13T12:00:00.000Z"),
+      ttl: 0,
+    });
+    const body = viewSubmissionBody({});
+    const timestamp = deps.now();
+    const event = buildEvent(body, timestamp, sign(timestamp, body));
+
+    const response = await handleRequest(event, deps);
+
+    expect(response.statusCode).toBe(200);
+    const parsed = JSON.parse(response.body ?? "{}");
+    expect(parsed.response_action).toBe("errors");
+    expect(parsed.errors[NOMINATE_RECIPIENT_BLOCK_ID]).toMatch(/already recognized/i);
+    expect(parsed.errors[NOMINATE_RECIPIENT_BLOCK_ID]).toMatch(/Aug 13, 2026/);
+    expect(deps.publish).not.toHaveBeenCalled();
+    expect(deps.eligibilityFind).toHaveBeenCalledWith({
+      workspaceId: "T_TEAM",
+      nominatorSlackId: "U_NOMINATOR",
+      recipientSlackId: "U_RECIPIENT",
+    });
+  });
+
+  it("proceeds when an expired eligibility record exists (window already closed)", async () => {
+    const nowMs = Date.parse("2026-08-01T12:00:00.000Z");
+    const deps = makeDeps({ nowMs: () => nowMs });
+    deps.eligibilityFind.mockResolvedValue({
+      entityType: "ELIGIBILITY",
+      workspaceId: "T_TEAM",
+      nominatorSlackId: "U_NOMINATOR",
+      recipientSlackId: "U_RECIPIENT",
+      nominationId: "N-old",
+      acceptedAt: "2026-07-01T12:00:00.000Z",
+      nextEligibleAt: "2026-07-15T12:00:00.000Z",
+      nextEligibleAtEpoch: Date.parse("2026-07-15T12:00:00.000Z"),
+      ttl: 0,
+    });
+    const body = viewSubmissionBody({});
+    const timestamp = deps.now();
+    const event = buildEvent(body, timestamp, sign(timestamp, body));
+
+    const response = await handleRequest(event, deps);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toBe("");
+    expect(deps.publish).toHaveBeenCalledTimes(1);
   });
 
   it("rejects a missing recipient with a modal error under the recipient block", async () => {

@@ -84,7 +84,7 @@ describe("postReminder", () => {
     expect(claimed.workspaceId).toBe("T1");
     expect(claimed.scheduledAt).toBe("2026-08-07T13:00:00.000Z");
 
-    // Public post landed on the recognition channel and encourages /nominate
+    // Public post landed on the recognition channel and encourages /kudos
     // without leaking secrets or user-specific data.
     expect(h.slack.postMessage).toHaveBeenCalledTimes(1);
     const post = h.slack.postMessage.mock.calls[0]![0] as {
@@ -92,7 +92,7 @@ describe("postReminder", () => {
       text: string;
     };
     expect(post.channel).toBe(RECOG);
-    expect(post.text).toContain("/nominate");
+    expect(post.text).toContain("/kudos");
 
     // markPosted records the Slack ts + now() timestamp.
     expect(h.reminders.markPosted).toHaveBeenCalledTimes(1);

@@ -2,20 +2,21 @@
 
 ## Interaction model
 
-Phase 1 uses Slack HTTP request URLs and `/nominate` as the primary entry point.
+Phase 1 uses Slack HTTP request URLs and `/kudos` as the primary entry point.
 
 ### Slash command flow
 
 1. Slack sends the signed command request to API Gateway.
 2. The ingress Lambda verifies the signature and replay window.
 3. The command is acknowledged immediately.
-4. The app uses the command `trigger_id` to open a modal.
+4. The ingress queries DynamoDB for the nominator's active eligibility records so the modal can display who they've already recognized this cycle.
+5. The app uses the command `trigger_id` to open a modal.
 
-The command should not parse recipient handles or descriptions from raw command text.
+If the eligibility lookup fails or is slow, the modal still opens without the hint — Slack's `trigger_id` expires after three seconds, so degrading gracefully matters more than the hint. The command should not parse recipient handles or descriptions from raw command text.
 
 ### Submission sequence
 
-End-to-end flow from `/nominate` invocation through modal submission, SQS handoff, atomic write, and feedback DM. Failure branches (invalid description, repeat-window rejection) are folded in as `alt` blocks.
+End-to-end flow from `/kudos` invocation through modal submission, SQS handoff, atomic write, and feedback DM. Failure branches (invalid description, repeat-window rejection) are folded in as `alt` blocks.
 
 ```mermaid
 sequenceDiagram
@@ -28,7 +29,7 @@ sequenceDiagram
     participant Worker as nomination-worker
     participant DDB as DynamoDB
 
-    Employee->>Slack: /nominate
+    Employee->>Slack: /kudos
     Slack->>APIGW: signed slash command
     APIGW->>Ingress: POST /slack/events
     Ingress->>Ingress: verify signature + replay window
@@ -40,9 +41,9 @@ sequenceDiagram
     Slack->>APIGW: view_submission
     APIGW->>Ingress: POST /slack/events
 
-    alt description invalid (length / empty)
+    alt description invalid (length / empty) or repeat-window hit
         Ingress-->>Slack: 200 with response_action=errors
-        Slack-->>Employee: inline modal errors
+        Slack-->>Employee: inline modal errors (keeps typed description)
     else valid payload
         Ingress->>SQS: SendMessage (envelope v1)
         Ingress-->>Slack: 200 (close modal)
@@ -85,6 +86,19 @@ Validation should reject:
 
 Eligibility conflicts discovered after submission should be returned privately through the appropriate Slack response mechanism.
 
+The ingress Lambda performs an eligibility pre-check on `view_submission` and returns `response_action=errors` under the recipient block when the same pair is still inside the 14-day window. This keeps the user's typed description intact so they can swap recipients without retyping. The worker still enforces the same rule atomically through the DynamoDB conditional in `TransactWriteItems` (docs/05 §Eligibility lock) — that guard covers the race where two rapid submissions both pass the pre-check.
+
+## Admin surface
+
+`/kudos-admin` is a maintainer-only slash command. Only Slack user IDs in `SLACK_MAINTAINER_IDS` can invoke it; every other caller receives an ephemeral rejection. Responses are ephemeral (rendered inline via `response_type: "ephemeral"` on the immediate slash-command response) — no `chat.postEphemeral` scope needed.
+
+Subcommands (Phase 1):
+
+- `/kudos-admin report` — publish the biweekly report for the current period on demand. The ingress Lambda asynchronously invokes the report Lambda with `BiweeklyReportRequestedV1 { forceRepublish: true, ...currentPeriod }`. The report Lambda overwrites any existing `REPORT_EXECUTION` row for that period back to `PENDING`, re-posts to the recognition channel, and re-sends winner DMs. This is an intentional exception to the "never re-publish" idempotency rule; scheduled EventBridge runs never set `forceRepublish` and continue to honor it.
+- `/kudos-admin` with no subcommand or `help` — returns usage.
+
+The route uses `periodContaining(now)` (packages/domain) to compute the active reporting period, so admin invocations always target the currently-open window. Custom period ranges are backlog work.
+
 ## Response visibility
 
 | Outcome | Visibility |
@@ -100,19 +114,19 @@ Eligibility conflicts discovered after submission should be returned privately t
 
 Success:
 
-> Your nomination for <@RECIPIENT_ID> was recorded. Thanks for recognizing their work.
+> Recognition for <@RECIPIENT_ID> is in. Thanks for the shout-out.
 
 Self-nomination:
 
-> You cannot nominate yourself. Please choose another teammate.
+> Recognition is for teammates — pick someone else to celebrate.
 
 Duplicate:
 
-> You already nominated <@RECIPIENT_ID> within the last 14 days. You can nominate them again after {localizedNextEligibleAt}.
+> <@RECIPIENT_ID> is already recognized this cycle. You can nominate them again after {localizedNextEligibleAt}.
 
 Ineligible account:
 
-> That account cannot receive nominations. Please choose an active employee in this workspace.
+> That account can't receive recognition. Please pick an active teammate in this workspace.
 
 ## Channel configuration
 
@@ -132,7 +146,7 @@ Maintainer Slack IDs are supplied as a configuration list, for example:
 SLACK_MAINTAINER_IDS=U123456,U789012
 ```
 
-Anyone may use `/nominate`. Maintainer privileges are reserved for current or future administrative operations and audit access.
+Anyone may use `/kudos`. Maintainer privileges are reserved for current or future administrative operations and audit access.
 
 ## OAuth scopes
 

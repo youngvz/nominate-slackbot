@@ -13,3 +13,14 @@ data_classification    = "Internal"
 enable_deletion_protection = false
 force_destroy              = true
 log_retention_days         = 7
+
+# Optional dev demo overrides. Leave commented for production semantics.
+# When overriding, set both together — first_report_at should be
+# program_start_at + 14 days at 12:00 local, per docs/10 §First period.
+# program_start_at = "2026-07-16T00:00:00-04:00"
+# first_report_at  = "2026-07-31T12:00:00-04:00"
+
+# Required for scheduled biweekly reports (docs/10 §Scheduled input contract).
+# EventBridge invokes the report Lambda with `{}`, so the target workspace is
+# read from env. Copy your dev workspace's T… ID.
+# report_workspace_id = "T00000000"

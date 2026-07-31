@@ -48,6 +48,66 @@ interface InvalidationMetadata {
 
 The interface may change without changing the approved domain behavior.
 
+## Edit an existing nomination description
+
+When a nominator hits the 14-day repeat window today the modal blocks
+them entirely (`docs/03 §Modal` + the ingress pre-check). A friendlier
+option is to let them **update the description on the existing
+nomination** for the same recipient within the same window instead of
+rejecting outright.
+
+### Feasibility
+
+The data path is straightforward:
+
+- The active eligibility row already carries `nominationId`
+  (`packages/domain/src/entities/Eligibility.ts`), so the ingress can
+  resolve the pair to a specific nomination.
+- `NominationRepository.findById` already exists and returns the full
+  `description` field. Prefilling the modal's `plain_text_input` with
+  its `initial_value` is a one-line change.
+
+### Product / audit questions to resolve first
+
+- **Do edits preserve or replace the description in the report?** If
+  edits change what shows up in winner DMs, we need an
+  `editedAt` / `editedByNominatorSlackId` audit trail plus a decision
+  on whether the report uses the latest or original text. Simplest v1:
+  latest text wins, original stored in a history list for audit.
+- **Does an edit reset the 14-day clock?** Almost certainly no — the
+  eligibility rule is about preventing repeated recognitions, not
+  repeated edits. Keep `nextEligibleAtEpoch` frozen at the original
+  `acceptedAt + 14d`.
+- **What's the UX signal?** The modal should make it obvious it's an
+  edit, not a new nomination. Options: swap the submit button text to
+  "Update" when prefilled, or show a context block ("You're editing
+  your recognition of @X from July 30").
+- **Character-count limits.** Same 10–1000 range applies. No new
+  validation.
+- **Logging.** `docs/09 §Logging` still bans logging the description,
+  so the edit event log carries `nominationId` + `editedAt` but not
+  the before/after text.
+
+### Suggested data model change
+
+Add an optional `descriptionHistory: Array<{ text: string;
+recordedAt: string }>` to the NOMINATION item, or (cleaner) store edits
+as sibling `NOMINATION_EDIT#<epoch>` rows under the same partition and
+keep the primary NOMINATION row as the current-truth pointer. The
+sibling-row shape stays cleanly atomic with `TransactWriteItems` and
+plays well with the invalidation flow already sketched above.
+
+### Interaction with maintainer invalidation
+
+If **Nomination invalidation** ships first, an invalidated nomination
+must NOT be edit-eligible — the modal should treat an INVALIDATED
+status the same as no active nomination. Adds one status check on the
+findById path.
+
+Not blocking Phase 1. Promote when the repeat-window rejection becomes
+a real complaint (right now the modal-hint + inline reject already
+recovers most of the UX loss).
+
 ## Inappropriate-language blocklist
 
 Consider a future validation layer that detects configured terms before storage.

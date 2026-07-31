@@ -1,6 +1,6 @@
-# nominate-slackbot
+# KudosBot
 
-Internal Slack employee-recognition bot. Employees invoke `/nominate`, pick a coworker, and submit a recognition; weekly reminders and biweekly reports are published automatically.
+Internal Slack employee-recognition bot. Employees invoke `/kudos`, pick a coworker, and submit a recognition; weekly reminders and biweekly reports are published automatically.
 
 Authoritative behavior lives under [`docs/`](docs/) — start with [`CLAUDE.md`](CLAUDE.md) for context routing.
 
@@ -37,6 +37,24 @@ The `prepare` script wires up Husky hooks automatically.
 | `pnpm dev` | Streams `dev` scripts across workspaces. |
 | `pnpm format` / `pnpm format:check` | Prettier write / check. |
 | `pnpm infra:validate` | `terraform fmt -check` + `terraform validate` across `infra/modules` and `infra/environments`. |
+
+### Dev-only helper scripts
+
+Direct-invoke helpers for the deployed dev Lambdas. Full docs in
+[`scripts/dev/README.md`](scripts/dev/README.md); destructive commands
+refuse `--env production` and require `--yes` to actually mutate.
+
+| Command | What it does |
+|---|---|
+| `pnpm dev:users` | Lists Slack workspace users via `users.list`. |
+| `pnpm dev:nominate` | Enqueues a nomination on the dev SQS queue. |
+| `pnpm dev:report` | Invokes the report Lambda (`--sync` for tail logs). |
+| `pnpm dev:reminder` | Invokes the reminder Lambda directly. |
+| `pnpm dev:period` | Read-only preview: counts + winners for a window. |
+| `pnpm dev:recipient` | Read-only: nominations for one recipient in a window. |
+| `pnpm dev:clear-eligibility` | Deletes a `PAIR_ELIGIBILITY` row so a pair can re-nominate. |
+| `pnpm dev:reset-period` | Wipes nominations + eligibility + report for a window. |
+| `pnpm dev:tail` | Follows all four dev Lambdas' CloudWatch logs at once. |
 
 ### Git hooks
 

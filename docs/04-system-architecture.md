@@ -4,7 +4,7 @@
 
 ```mermaid
 flowchart TD
-    User([Employee]) -->|/nominate| APIGW[API Gateway HTTP API]
+    User([Employee]) -->|/kudos| APIGW[API Gateway HTTP API]
 
     subgraph AWS[" "]
         APIGW --> Ingress[slack-ingress Lambda]

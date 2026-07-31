@@ -1,5 +1,6 @@
-import { validateDescription } from "@nominate/domain";
+import { PROGRAM_TIMEZONE, validateDescription } from "@nominate/domain";
 import type { NominationSubmissionRequestedV1 } from "@nominate/contracts";
+import type { EligibilityRepository } from "@nominate/persistence";
 import {
   NOMINATE_DESCRIPTION_BLOCK_ID,
   NOMINATE_RECIPIENT_BLOCK_ID,
@@ -27,10 +28,17 @@ export type ViewSubmissionResult =
   | { kind: "close" }
   | { kind: "errors"; errors: Record<string, string> };
 
+export interface ViewSubmissionDeps {
+  publisher: NominationPublisher;
+  eligibility: EligibilityRepository;
+  logger: Logger;
+  now: () => number;
+}
+
 export async function handleViewSubmission(
   view: unknown,
   ctx: ViewSubmissionContext,
-  deps: { publisher: NominationPublisher; logger: Logger },
+  deps: ViewSubmissionDeps,
 ): Promise<ViewSubmissionResult> {
   const log = deps.logger.child({
     correlationId: ctx.correlationId,
@@ -85,6 +93,29 @@ export async function handleViewSubmission(
     };
   }
 
+  // Sync repeat-window pre-check: surface duplicate nominations inline in the
+  // modal so the user keeps their typed description and can swap recipients.
+  // The worker still enforces the guard atomically via DynamoDB conditionals
+  // (docs/02 §Rolling eligibility), covering the race between two rapid
+  // submissions that both pass this check.
+  const existing = await deps.eligibility.find({
+    workspaceId: ctx.workspaceId,
+    nominatorSlackId: ctx.nominatorSlackId,
+    recipientSlackId,
+  });
+  if (existing && existing.nextEligibleAtEpoch > deps.now()) {
+    log.info("nomination_rejected", {
+      outcome: "rejected",
+      errorCategory: "REPEAT_WINDOW",
+    });
+    return {
+      kind: "errors",
+      errors: {
+        [NOMINATE_RECIPIENT_BLOCK_ID]: duplicateRecipientMessage(existing.nextEligibleAt),
+      },
+    };
+  }
+
   const event: NominationSubmissionRequestedV1 = {
     eventType: "nomination.submission.requested",
     schemaVersion: 1,
@@ -121,5 +152,23 @@ function descriptionErrorMessage(
     case "TOO_LONG":
       return "That's too long — please keep it under 1,000 characters.";
   }
+}
+
+// Renders the eligibility date in the program timezone for inline modal
+// errors. Slack view errors are single-line strings, so we prefer a compact
+// "Aug 13, 2026" over ISO output.
+const DUPLICATE_DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  timeZone: PROGRAM_TIMEZONE,
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+});
+
+function duplicateRecipientMessage(nextEligibleAtIso: string): string {
+  const parsed = Date.parse(nextEligibleAtIso);
+  const label = Number.isNaN(parsed)
+    ? nextEligibleAtIso
+    : DUPLICATE_DATE_FORMATTER.format(new Date(parsed));
+  return `You've already recognized this teammate this cycle — try again after ${label}.`;
 }
 

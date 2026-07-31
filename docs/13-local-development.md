@@ -23,6 +23,19 @@ PROGRAM_TIMEZONE=America/New_York
 PROGRAM_START_AT=2026-07-31T00:00:00-04:00
 DYNAMODB_TABLE_NAME=
 NOMINATION_QUEUE_URL=
+# Ingress-only, optional. When unset, `/kudos-admin report` logs the
+# invocation and returns success without actually calling the report Lambda —
+# useful for local development where the report function isn't deployed.
+REPORT_FUNCTION_NAME=
+# Optional dev-only override for the first-report anchor. When unset, the
+# domain uses the production 2026-08-14T12:00-04:00 anchor. Set alongside
+# PROGRAM_START_AT to shift the first reporting period earlier so pre-launch
+# test nominations fall inside a real window (docs/10 §First period).
+FIRST_REPORT_AT=
+# Report-job only. Target Slack workspace ID (T…) used when EventBridge
+# fires the scheduled biweekly report with an empty payload
+# (docs/10 §Scheduled input contract). Not read by other Lambdas.
+REPORT_WORKSPACE_ID=
 ```
 
 Do not commit `.env`.
@@ -70,9 +83,37 @@ pnpm infra:destroy <dev|production>     # production requires --yes-really-produ
 
 The actual package manager may differ, but one tool should be standardized across the monorepo. Every `infra:*` script beyond `validate` requires an AWS session; see `docs/14` §First stand-up for the run order.
 
-## Testing scheduled jobs locally
+## Dev helper scripts
 
-Allow reminder and report handlers to accept explicit scheduled timestamps and period boundaries in development. Production schedule events remain authoritative.
+Direct-invoke helpers under `scripts/dev/` exercise deployed dev Lambdas
+without going through the Slack UI. Every script reads live env values
+(queue URL, workspace ID, secret ARNs, reporting anchors) via
+`GetFunctionConfiguration` on the target Lambda, so nothing drifts from
+what's actually deployed. Destructive commands refuse `--env production`
+and require `--yes` to mutate.
+
+| Command | Category | What it does |
+|---|---|---|
+| `pnpm dev:users` | read | Lists Slack workspace users via `users.list`. |
+| `pnpm dev:nominate` | write | Enqueues a `NominationSubmissionRequestedV1` on the dev SQS queue. Default recipient = first `SLACK_MAINTAINER_IDS`. |
+| `pnpm dev:report` | invoke | Invokes the report Lambda with a `BiweeklyReportRequestedV1`. `--sync` returns tail logs; `forceRepublish=true` by default. |
+| `pnpm dev:reminder` | invoke | Invokes the reminder Lambda directly. |
+| `pnpm dev:period` | read | Preview a report over a window: counts by recipient, max, tied winners. |
+| `pnpm dev:recipient` | read | Nominations to a recipient in a window with nominator IDs; descriptions truncated per `docs/09` unless `--full`. |
+| `pnpm dev:clear-eligibility` | destructive | Deletes a `PAIR_ELIGIBILITY` row so a pair can re-nominate immediately. NOMINATION rows untouched. |
+| `pnpm dev:reset-period` | destructive | Wipes NOMINATION + PAIR_ELIGIBILITY + REPORT_EXECUTION rows for a window. |
+| `pnpm dev:tail` | read | Follows all four dev Lambdas' CloudWatch logs concurrently, color-coded per source. |
+
+Full flag reference and usage examples live in
+[`scripts/dev/README.md`](../scripts/dev/README.md).
+
+### Testing scheduled jobs
+
+Reminder and report handlers accept explicit scheduled timestamps and
+period boundaries so on-demand runs are indistinguishable from scheduled
+ones at the code path level. Use `pnpm dev:reminder` / `pnpm dev:report`
+above to fire either handler with a live payload; production schedule
+events remain authoritative.
 
 ## Troubleshooting
 

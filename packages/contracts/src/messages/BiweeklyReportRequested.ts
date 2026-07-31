@@ -7,4 +7,8 @@ export interface BiweeklyReportRequestedV1 {
   periodStart: string;
   periodEnd: string;
   executionKey: string;
+  // Admin-triggered on-demand runs set this to bypass the "already PUBLISHED"
+  // idempotency guard so demos can re-post the report for the current period.
+  // Scheduled EventBridge runs must never set this.
+  forceRepublish?: boolean;
 }

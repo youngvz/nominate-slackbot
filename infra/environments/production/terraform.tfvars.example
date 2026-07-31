@@ -5,6 +5,10 @@ project                = "nominate-slackbot"
 environment            = "production"
 recognition_channel_id = "C00000000"
 maintainer_slack_ids   = []
+# Required for the scheduled biweekly report — EventBridge invokes the Lambda
+# with an empty payload and the target workspace is read from env
+# (docs/10 §Scheduled input contract).
+report_workspace_id = "T00000000"
 artifact_bucket        = "example-artifacts-bucket"
 owner                  = "team-recognition"
 cost_center            = ""

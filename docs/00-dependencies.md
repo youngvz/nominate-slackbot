@@ -117,9 +117,15 @@ works — pick one:
 
 - **Install:** `brew install awscli` or see
   <https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html>.
-- **Configure:** `aws configure --profile nominate-dev` (or your naming
-  convention). Only needed when actually calling AWS — the local dev shim
-  publishes to `stdout://` by default and does not touch AWS.
+- **Configure:** `aws configure --profile kudos-dev` (or your naming
+  convention). Required when actually calling AWS — the local dev shim
+  publishes to `stdout://` by default and does not touch AWS, but the
+  `pnpm dev:*` helper scripts under [`scripts/dev/`](../scripts/dev/README.md)
+  hit real AWS resources and need credentials with (at minimum)
+  `lambda:GetFunctionConfiguration`, `lambda:InvokeFunction`,
+  `sqs:SendMessage`, `secretsmanager:GetSecretValue`, and DynamoDB
+  read/delete on the dev table. `pnpm dev:tail` additionally shells out
+  to `aws logs tail --follow`.
 
 ### Docker
 

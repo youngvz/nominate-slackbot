@@ -17,6 +17,10 @@ export interface ReportRepository {
     periodStart: string;
   }): Promise<ReportExecutionItem | null>;
   putPendingExecution(item: ReportExecutionItem): Promise<void>;
+  // Unconditional overwrite for admin-forced republish runs. Scheduled
+  // executions must never call this — they rely on the conditional put in
+  // `putPendingExecution` to preserve prior state across retries.
+  overwritePendingExecution(item: ReportExecutionItem): Promise<void>;
   markPublished(input: {
     workspaceId: string;
     periodStart: string;
@@ -58,6 +62,15 @@ export function createReportRepository(
           TableName: tableName,
           Item: toReportDdbItem(item),
           ConditionExpression: "attribute_not_exists(PK)",
+        }),
+      );
+    },
+
+    async overwritePendingExecution(item) {
+      await client.send(
+        new PutCommand({
+          TableName: tableName,
+          Item: toReportDdbItem(item),
         }),
       );
     },

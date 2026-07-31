@@ -1,5 +1,5 @@
 {
-  "name": "nominate-slackbot",
+  "name": "kudosbot",
   "version": "0.0.0",
   "private": true,
   "description": "Internal Slack employee-recognition bot. See docs/ for authoritative behavior.",
@@ -24,9 +24,23 @@
     "infra:stub-lambdas": "bash scripts/upload-lambda-stubs.sh",
     "infra:upload-lambdas": "bash scripts/upload-lambdas.sh",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "dev:nominate": "node scripts/dev/enqueue-nomination.mjs",
+    "dev:report": "node scripts/dev/invoke-report.mjs",
+    "dev:users": "node scripts/dev/list-users.mjs",
+    "dev:period": "node scripts/dev/inspect-period.mjs",
+    "dev:recipient": "node scripts/dev/inspect-recipient.mjs",
+    "dev:clear-eligibility": "node scripts/dev/clear-eligibility.mjs",
+    "dev:reset-period": "node scripts/dev/reset-period.mjs",
+    "dev:reminder": "node scripts/dev/invoke-reminder.mjs",
+    "dev:tail": "node scripts/dev/tail-logs.mjs"
   },
   "devDependencies": {
+    "@aws-sdk/client-dynamodb": "^3.630.0",
+    "@aws-sdk/client-lambda": "^3.630.0",
+    "@aws-sdk/client-secrets-manager": "^3.630.0",
+    "@aws-sdk/client-sqs": "^3.630.0",
+    "@aws-sdk/lib-dynamodb": "^3.630.0",
     "@eslint/js": "^9.9.0",
     "@types/node": "^20.14.10",
     "@typescript-eslint/eslint-plugin": "^8.4.0",

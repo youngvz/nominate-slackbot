@@ -67,6 +67,18 @@ variable "recognition_channel_id" {
   type = string
 }
 
+variable "slack_maintainer_ids" {
+  description = "Comma-separated Slack user IDs allowed to invoke /kudos-admin (docs/02 §Maintainer authorization)."
+  type        = string
+  default     = ""
+}
+
+variable "report_workspace_id" {
+  description = "Slack workspace ID the scheduled report Lambda targets when EventBridge fires with an empty payload (docs/10 §Scheduled input contract). Empty string omits the env var; admin invocations still supply workspaceId explicitly."
+  type        = string
+  default     = ""
+}
+
 variable "program_timezone" {
   description = "IANA timezone used for program-facing scheduling."
   type        = string
@@ -77,6 +89,12 @@ variable "program_start_at" {
   description = "ISO-8601 program start timestamp with fixed offset (docs/10)."
   type        = string
   default     = "2026-07-31T00:00:00-04:00"
+}
+
+variable "first_report_at" {
+  description = "Optional dev override for the first-report anchor. Empty string keeps the domain default (docs/10). Production must leave this empty."
+  type        = string
+  default     = ""
 }
 
 variable "log_retention_days" {
