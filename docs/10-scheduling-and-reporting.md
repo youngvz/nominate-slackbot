@@ -15,6 +15,7 @@ Use EventBridge Scheduler timezone-aware schedules rather than converting these 
 - Runs every Friday at 9:00 AM local time.
 - Posts to the single configured recognition channel.
 - Encourages employees to use `/kudos`.
+- Includes the standard peer-recognition disclaimer footer (see `docs/03-slack-app-design.md` §Suggested copy).
 - Uses an execution key derived from workspace and scheduled time.
 - A retry must not create a duplicate reminder.
 
@@ -50,6 +51,7 @@ The public report contains:
 - Winner or tied winner mentions.
 - Nomination count per winner.
 - A short recognition message.
+- The standard peer-recognition disclaimer footer (see `docs/03-slack-app-design.md` §Suggested copy). Applies to both the winner variant and the no-activity variant.
 
 It excludes:
 

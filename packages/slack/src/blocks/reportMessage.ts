@@ -1,5 +1,7 @@
 import type { Winner } from "@nominate/domain";
 
+import { PROGRAM_DISCLAIMER } from "../copy/messages.js";
+
 // docs/02 §Publication rules + docs/10 §Public message. Winner mentions and
 // nomination counts only — never nominator identities or descriptions.
 export function buildReportMessage(input: {
@@ -39,6 +41,10 @@ export function buildReportMessage(input: {
             text: "Thanks for taking the time to recognize your coworkers. 💛",
           },
         ],
+      },
+      {
+        type: "context",
+        elements: [{ type: "mrkdwn", text: PROGRAM_DISCLAIMER }],
       },
     ],
   };
