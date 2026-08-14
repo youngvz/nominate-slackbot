@@ -59,8 +59,7 @@ An expired eligibility item may still physically exist because DynamoDB TTL dele
 - Descriptions do not change score.
 - Nominator title, department, or seniority does not change score.
 - Repeated nominators do not receive extra weighting.
-- The recipient or recipients with the highest score win.
-- All ties for the highest score are published.
+- Counts are informational — used privately to gauge how many teammates recognized a person — and do not filter who is named publicly or who receives a DM (see §Publication rules and `docs/adr/ADR-007`).
 
 ## Reporting periods
 
@@ -82,15 +81,18 @@ A nomination submitted exactly at a period end belongs to the next period.
 
 Public recognition channel:
 
-- Publish winner names and valid nomination counts.
+- Publish the name (Slack mention) of every recipient who received at least one valid nomination in the period.
 - Do not publish nominator identities.
 - Do not publish descriptions in the shared channel.
-- Publish every tied winner.
+- Do not publish per-recipient nomination counts.
+- Do not single out top-count recipients — the message is a shoutout to everyone recognized, not a ranking (see `docs/adr/ADR-007`).
 - Publish a no-nominations message when the period is empty.
+- Append the standard peer-recognition disclaimer footer (see `docs/03-slack-app-design.md` §Suggested copy).
 
-Private winner DM:
+Private recipient DM:
 
-- Send only descriptions associated with that winner and period.
+- Send a DM to every recipient with at least one valid nomination in the period.
+- Include only the descriptions associated with that recipient and period.
 - Do not include nominator IDs, names, or handles.
 - Preserve audit linkage internally.
 - Failure to send a DM must not roll back a successfully published report.
