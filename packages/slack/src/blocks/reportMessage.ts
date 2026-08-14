@@ -30,15 +30,6 @@ export function buildReportMessage(input: {
       },
       {
         type: "context",
-        elements: [
-          {
-            type: "mrkdwn",
-            text: "Thanks to everyone who took a minute to recognize a coworker. 💛",
-          },
-        ],
-      },
-      {
-        type: "context",
         elements: [{ type: "mrkdwn", text: PROGRAM_DISCLAIMER }],
       },
     ],
