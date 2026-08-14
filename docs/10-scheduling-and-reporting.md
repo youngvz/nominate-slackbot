@@ -15,6 +15,7 @@ Use EventBridge Scheduler timezone-aware schedules rather than converting these 
 - Runs every Friday at 9:00 AM local time.
 - Posts to the single configured recognition channel.
 - Encourages employees to use `/kudos`.
+- Includes the standard peer-recognition disclaimer footer (see `docs/03-slack-app-design.md` §Suggested copy).
 - Uses an execution key derived from workspace and scheduled time.
 - A retry must not create a duplicate reminder.
 
@@ -38,29 +39,30 @@ A nomination at exactly August 14 at 12:00 PM belongs to the second period.
 
 1. Query valid nominations for the period.
 2. Group by recipient Slack ID.
-3. Count one point per nomination.
-4. Determine the maximum count.
-5. Publish all recipients whose count equals the maximum.
-6. If there are no nominations, publish a no-activity message.
+3. Count one point per nomination (informational; retained for the DM and for auditing).
+4. Publish every recipient who received at least one valid nomination in the period. Counts do not filter who is named — see `docs/adr/ADR-007`.
+5. If there are no nominations, publish a no-activity message.
 
 ## Public message
 
 The public report contains:
 
-- Winner or tied winner mentions.
-- Nomination count per winner.
-- A short recognition message.
+- A Slack mention for every recipient with ≥1 nomination in the period, sorted by Slack ID for stable ordering across retries.
+- A short recognition message ("Shoutout to the teammates recognized by their coworkers this period…").
+- The standard peer-recognition disclaimer footer (see `docs/03-slack-app-design.md` §Suggested copy). Applies to both the shoutout variant and the no-activity variant.
 
 It excludes:
 
 - Nominator identities.
 - Nomination descriptions.
+- Per-recipient nomination counts.
+- Any "winner", "top", or ranking language — this is peer recognition, not competition.
 
-## Winner DMs
+## Recipient DMs
 
 After the public report is recorded as published:
 
-- Send each winner only their descriptions.
+- Send a DM to every recipient with ≥1 nomination in the period, containing only their descriptions.
 - Do not reveal nominators.
 - Track each DM attempt separately.
 - Retry retryable failures.

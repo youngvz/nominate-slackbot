@@ -120,7 +120,7 @@ function harness(
 }
 
 describe("runReport", () => {
-  it("publishes a winner message and DMs the winner their descriptions", async () => {
+  it("publishes a shoutout naming every recipient and DMs each of them their descriptions", async () => {
     const noms = [
       nomination("U_A", "Kicked off migration", "n1"),
       nomination("U_A", "Owned the rollout", "n2"),
@@ -130,18 +130,20 @@ describe("runReport", () => {
 
     await runReport(event(), h.deps);
 
-    // PENDING row created with counts and per-winner delivery entries.
+    // PENDING row created with counts and one delivery entry per recipient
+    // (everyone with ≥1 nomination — see ADR-007).
     expect(h.reports.putPendingExecution).toHaveBeenCalledTimes(1);
     const pending = h.reports.putPendingExecution.mock
       .calls[0]![0] as ReportExecutionItem;
     expect(pending.status).toBe("PENDING");
-    expect(pending.winnerSlackIds).toEqual(["U_A"]);
+    expect(pending.winnerSlackIds).toEqual(["U_A", "U_B"]);
     expect(pending.countsBySlackId).toEqual({ U_A: 2, U_B: 1 });
     expect(pending.dmDeliveries).toEqual([
       { recipientSlackId: "U_A", status: "PENDING", attempts: 0 },
+      { recipientSlackId: "U_B", status: "PENDING", attempts: 0 },
     ]);
 
-    // Public post + PUBLISHED update.
+    // Public post names every recipient. No descriptions, no counts.
     expect(h.slack.postMessage).toHaveBeenCalled();
     const publicPost = h.slack.postMessage.mock.calls[0]![0] as {
       channel: string;
@@ -149,29 +151,42 @@ describe("runReport", () => {
     };
     expect(publicPost.channel).toBe(RECOG);
     expect(publicPost.text).toContain("<@U_A>");
+    expect(publicPost.text).toContain("<@U_B>");
     expect(publicPost.text).not.toContain("Kicked off migration");
     expect(h.reports.markPublished).toHaveBeenCalledTimes(1);
 
-    // Winner DM with all their descriptions and no nominator identifiers.
-    const dmCall = h.slack.postMessage.mock.calls[1]![0] as {
+    // One DM per recipient, iterated in sorted Slack-ID order. Each DM
+    // contains only the descriptions written about that recipient and no
+    // nominator identifiers.
+    const dmA = h.slack.postMessage.mock.calls[1]![0] as {
       channel: string;
       text: string;
     };
-    expect(dmCall.channel).toBe("D-U_A");
-    expect(dmCall.text).toContain("Kicked off migration");
-    expect(dmCall.text).toContain("Owned the rollout");
-    expect(dmCall.text).not.toContain("NOM-");
+    expect(dmA.channel).toBe("D-U_A");
+    expect(dmA.text).toContain("Kicked off migration");
+    expect(dmA.text).toContain("Owned the rollout");
+    expect(dmA.text).not.toContain("Helped review");
+    expect(dmA.text).not.toContain("NOM-");
 
-    // DM state persisted as SENT.
-    expect(h.reports.updateDmDelivery).toHaveBeenCalledTimes(1);
-    const dmDelivery = h.reports.updateDmDelivery.mock.calls[0]![0] as {
-      delivery: WinnerDmDelivery;
+    const dmB = h.slack.postMessage.mock.calls[2]![0] as {
+      channel: string;
+      text: string;
     };
-    expect(dmDelivery.delivery.status).toBe("SENT");
-    expect(dmDelivery.delivery.attempts).toBe(1);
+    expect(dmB.channel).toBe("D-U_B");
+    expect(dmB.text).toContain("Helped review");
+    expect(dmB.text).not.toContain("Kicked off migration");
+    expect(dmB.text).not.toContain("NOM-");
+
+    // Both delivery rows persisted as SENT.
+    expect(h.reports.updateDmDelivery).toHaveBeenCalledTimes(2);
+    const deliveries = h.reports.updateDmDelivery.mock.calls.map(
+      (c) => (c[0] as { delivery: WinnerDmDelivery }).delivery,
+    );
+    expect(deliveries.every((d) => d.status === "SENT")).toBe(true);
+    expect(deliveries.every((d) => d.attempts === 1)).toBe(true);
   });
 
-  it("publishes all tied winners", async () => {
+  it("names every recipient regardless of count (count does not filter who is published or DMed)", async () => {
     const noms = [
       nomination("U_A", "one", "n1"),
       nomination("U_A", "two", "n2"),
@@ -184,13 +199,13 @@ describe("runReport", () => {
 
     const pending = h.reports.putPendingExecution.mock
       .calls[0]![0] as ReportExecutionItem;
-    expect(pending.winnerSlackIds.sort()).toEqual(["U_A", "U_B"]);
+    expect(pending.winnerSlackIds).toEqual(["U_A", "U_B"]);
 
     const publicPost = h.slack.postMessage.mock.calls[0]![0] as { text: string };
     expect(publicPost.text).toContain("<@U_A>");
     expect(publicPost.text).toContain("<@U_B>");
 
-    // Each winner receives their own DM.
+    // One DM per recipient.
     expect(h.slack.openDm).toHaveBeenCalledTimes(2);
     expect(h.reports.updateDmDelivery).toHaveBeenCalledTimes(2);
   });
@@ -255,7 +270,7 @@ describe("runReport", () => {
     expect(delivery.attempts).toBe(2);
   });
 
-  it("does not retry winners whose DM was already SENT", async () => {
+  it("does not retry recipients whose DM was already SENT", async () => {
     const noms = [
       nomination("U_A", "one", "n1"),
       nomination("U_B", "two", "n2"),

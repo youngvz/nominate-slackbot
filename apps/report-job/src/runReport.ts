@@ -2,10 +2,8 @@ import type { BiweeklyReportRequestedV1 } from "@nominate/contracts";
 import type {
   NominationItem,
   ReportExecutionItem,
-  Winner,
   WinnerDmDelivery,
 } from "@nominate/domain";
-import { tallyWinners } from "@nominate/domain";
 import type { Logger } from "@nominate/observability";
 import type {
   NominationRepository,
@@ -18,11 +16,12 @@ import {
   type SlackClient,
 } from "@nominate/slack";
 
-// docs/04 §Report Lambda + docs/10 §Aggregation, §Public message, §Winner DMs.
-// Idempotency is anchored to the REPORT_EXECUTION row: PENDING → PUBLISHED →
-// per-winner DMs. A retry that lands after PUBLISHED must never re-post the
-// public message; a DM failure must not roll back publication (docs/02
-// §Publication rules).
+// docs/04 §Report Lambda + docs/10 §Aggregation, §Public message, §Recipient DMs.
+// docs/adr/ADR-007: everyone with ≥1 nomination this period is named publicly
+// and DMed their descriptions — no top-count filtering. Idempotency is anchored
+// to the REPORT_EXECUTION row: PENDING → PUBLISHED → per-recipient DMs. A retry
+// that lands after PUBLISHED must never re-post the public message; a DM
+// failure must not roll back publication (docs/02 §Publication rules).
 
 export interface RunReportDeps {
   nominations: NominationRepository;
@@ -64,12 +63,14 @@ export async function runReport(
     periodEndEpochMs,
   });
 
-  const winners = tallyWinners(nominations);
   const countsBySlackId: Record<string, number> = {};
   for (const nomination of nominations) {
     countsBySlackId[nomination.recipientSlackId] =
       (countsBySlackId[nomination.recipientSlackId] ?? 0) + 1;
   }
+  // Every teammate with ≥1 nomination is a recipient. Sorted for deterministic
+  // ordering so retries and admin re-runs produce identical output.
+  const recipientSlackIds = Object.keys(countsBySlackId).sort();
 
   const existing = await deps.reports.getExecution({
     workspaceId: event.workspaceId,
@@ -77,14 +78,14 @@ export async function runReport(
   });
 
   // Admin-triggered "force" runs (docs/03 §Admin surface) rewrite the execution
-  // row to a fresh PENDING state so the public post and winner DMs re-fire.
+  // row to a fresh PENDING state so the public post and recipient DMs re-fire.
   // Scheduled EventBridge invocations must never set this flag.
   const forceRepublish = event.forceRepublish === true;
 
   const execution = await ensurePendingExecution({
     event,
     existing: forceRepublish ? null : existing,
-    winners,
+    recipientSlackIds,
     countsBySlackId,
     forceRepublish,
     deps,
@@ -93,18 +94,18 @@ export async function runReport(
   const published = await ensurePublished({
     event,
     execution,
-    winners,
+    recipientSlackIds,
     forceRepublish,
     deps,
     log,
   });
 
-  if (winners.length === 0) return;
+  if (recipientSlackIds.length === 0) return;
 
-  await deliverWinnerDms({
+  await deliverRecipientDms({
     event,
     execution: published,
-    winners,
+    recipientSlackIds,
     nominations,
     deps,
     log,
@@ -114,7 +115,7 @@ export async function runReport(
 interface PendingContext {
   event: BiweeklyReportRequestedV1;
   existing: ReportExecutionItem | null;
-  winners: Winner[];
+  recipientSlackIds: readonly string[];
   countsBySlackId: Record<string, number>;
   forceRepublish: boolean;
   deps: RunReportDeps;
@@ -123,23 +124,25 @@ interface PendingContext {
 async function ensurePendingExecution({
   event,
   existing,
-  winners,
+  recipientSlackIds,
   countsBySlackId,
   forceRepublish,
   deps,
 }: PendingContext): Promise<ReportExecutionItem> {
   if (existing) return existing;
+  // winnerSlackIds field carries every recipient now; the field name is a
+  // rename target (see ADR-007) but the storage semantics are unchanged.
   const pending: ReportExecutionItem = {
     entityType: "REPORT_EXECUTION",
     workspaceId: event.workspaceId,
     periodStart: event.periodStart,
     periodEnd: event.periodEnd,
     status: "PENDING",
-    winnerSlackIds: winners.map((w) => w.recipientSlackId),
+    winnerSlackIds: [...recipientSlackIds],
     countsBySlackId,
-    dmDeliveries: winners.map(
-      (w): WinnerDmDelivery => ({
-        recipientSlackId: w.recipientSlackId,
+    dmDeliveries: recipientSlackIds.map(
+      (recipientSlackId): WinnerDmDelivery => ({
+        recipientSlackId,
         status: "PENDING",
         attempts: 0,
       }),
@@ -159,7 +162,7 @@ async function ensurePendingExecution({
 interface PublishContext {
   event: BiweeklyReportRequestedV1;
   execution: ReportExecutionItem;
-  winners: Winner[];
+  recipientSlackIds: readonly string[];
   forceRepublish: boolean;
   deps: RunReportDeps;
   log: Logger;
@@ -168,7 +171,7 @@ interface PublishContext {
 async function ensurePublished({
   event,
   execution,
-  winners,
+  recipientSlackIds,
   forceRepublish,
   deps,
   log,
@@ -179,12 +182,12 @@ async function ensurePublished({
   }
 
   const message =
-    winners.length === 0
+    recipientSlackIds.length === 0
       ? buildEmptyPeriodMessage(event.periodEnd)
       : buildReportMessage({
           periodStart: event.periodStart,
           periodEnd: event.periodEnd,
-          winners,
+          recipientSlackIds,
         });
   const posted = await deps.slack.postMessage({
     channel: deps.recognitionChannelId,
@@ -201,7 +204,7 @@ async function ensurePublished({
   });
   log.info("report_published", {
     outcome: "PUBLISHED",
-    winnerCount: winners.length,
+    recipientCount: recipientSlackIds.length,
   });
   return {
     ...execution,
@@ -214,23 +217,23 @@ async function ensurePublished({
 interface DeliverContext {
   event: BiweeklyReportRequestedV1;
   execution: ReportExecutionItem;
-  winners: Winner[];
+  recipientSlackIds: readonly string[];
   nominations: NominationItem[];
   deps: RunReportDeps;
   log: Logger;
 }
 
-async function deliverWinnerDms({
+async function deliverRecipientDms({
   event,
   execution,
-  winners,
+  recipientSlackIds,
   nominations,
   deps,
   log,
 }: DeliverContext): Promise<void> {
   const descriptionsBySlackId = new Map<string, string[]>();
-  for (const winner of winners) {
-    descriptionsBySlackId.set(winner.recipientSlackId, []);
+  for (const recipientSlackId of recipientSlackIds) {
+    descriptionsBySlackId.set(recipientSlackId, []);
   }
   for (const nomination of nominations) {
     const bucket = descriptionsBySlackId.get(nomination.recipientSlackId);
@@ -242,11 +245,11 @@ async function deliverWinnerDms({
     deliveriesById.set(entry.recipientSlackId, entry);
   }
 
-  for (const winner of winners) {
+  for (const recipientSlackId of recipientSlackIds) {
     const current =
-      deliveriesById.get(winner.recipientSlackId) ??
+      deliveriesById.get(recipientSlackId) ??
       ({
-        recipientSlackId: winner.recipientSlackId,
+        recipientSlackId,
         status: "PENDING",
         attempts: 0,
       } as WinnerDmDelivery);
@@ -254,11 +257,11 @@ async function deliverWinnerDms({
       continue;
     }
 
-    const descriptions = descriptionsBySlackId.get(winner.recipientSlackId) ?? [];
+    const descriptions = descriptionsBySlackId.get(recipientSlackId) ?? [];
     const attemptedAt = new Date(deps.now()).toISOString();
     try {
       const { channel } = await deps.slack.openDm({
-        userSlackId: winner.recipientSlackId,
+        userSlackId: recipientSlackId,
         workspaceId: event.workspaceId,
       });
       const dm = buildWinnerDm({
@@ -276,15 +279,15 @@ async function deliverWinnerDms({
         workspaceId: event.workspaceId,
         periodStart: event.periodStart,
         delivery: {
-          recipientSlackId: winner.recipientSlackId,
+          recipientSlackId,
           status: "SENT",
           attempts: current.attempts + 1,
           lastAttemptAt: attemptedAt,
         },
       });
-      log.info("winner_dm_sent", {
+      log.info("recipient_dm_sent", {
         outcome: "SENT",
-        recipient: winner.recipientSlackId,
+        recipient: recipientSlackId,
       });
     } catch (err) {
       const errorCategory = err instanceof Error ? err.name : "unknown";
@@ -292,16 +295,16 @@ async function deliverWinnerDms({
         workspaceId: event.workspaceId,
         periodStart: event.periodStart,
         delivery: {
-          recipientSlackId: winner.recipientSlackId,
+          recipientSlackId,
           status: "FAILED_RETRYABLE",
           attempts: current.attempts + 1,
           lastAttemptAt: attemptedAt,
           lastError: errorCategory,
         },
       });
-      log.warn("winner_dm_failed", {
+      log.warn("recipient_dm_failed", {
         outcome: "FAILED_RETRYABLE",
-        recipient: winner.recipientSlackId,
+        recipient: recipientSlackId,
         errorCategory,
       });
     }

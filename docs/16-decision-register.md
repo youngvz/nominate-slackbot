@@ -25,10 +25,9 @@
 | Slack Connect/external users | Cannot receive nominations |
 | Bots and deactivated users | Cannot receive nominations |
 | Self-nomination | Prohibited |
-| Winner calculation | One valid nomination equals one point |
-| Ties | Publish all tied highest scorers |
-| Public report | Winner identities and counts only |
-| Winner details | Private DM containing descriptions, without nominator identities |
+| Nomination scoring | One valid nomination equals one point; counts are informational only and do not filter publication (ADR-007) |
+| Public report | Every recipient with ≥1 nomination is named; no counts, no descriptions, no winner/ranking framing (ADR-007) |
+| Recipient DMs | Private DM to every recipient with ≥1 nomination, containing only their descriptions and no nominator identities (ADR-007) |
 | Shared channel | One deployment-configured channel for reminders and reports |
 | Maintainers | Configured Slack ID allowlist and approved workspace admins/owners |
 | Operational retention | One year in DynamoDB |

@@ -1,3 +1,5 @@
+import { PROGRAM_DISCLAIMER } from "../copy/messages.js";
+
 // docs/10 §Aggregation step 6: publish a no-activity message when the period
 // is empty. docs/02 §Publication rules: still no nominator identities and no
 // descriptions in the shared channel.
@@ -58,6 +60,10 @@ export function buildEmptyPeriodMessage(_periodEnd: string): {
       {
         type: "context",
         elements: [{ type: "mrkdwn", text: variant.footer }],
+      },
+      {
+        type: "context",
+        elements: [{ type: "mrkdwn", text: PROGRAM_DISCLAIMER }],
       },
     ],
   };

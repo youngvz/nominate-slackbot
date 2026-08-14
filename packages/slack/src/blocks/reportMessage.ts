@@ -1,31 +1,28 @@
-import type { Winner } from "@nominate/domain";
+import { PROGRAM_DISCLAIMER } from "../copy/messages.js";
 
-// docs/02 §Publication rules + docs/10 §Public message. Winner mentions and
-// nomination counts only — never nominator identities or descriptions.
+// docs/02 §Publication rules + docs/10 §Public message. Names every recipient
+// who received ≥1 nomination this period. Never publishes nominator identities,
+// descriptions, or per-recipient counts — recognition, not competition (see
+// docs/adr/ADR-007). Callers must route empty periods to buildEmptyPeriodMessage.
+//
+// Recipient IDs are sorted so retries produce byte-identical text; the report
+// job's idempotency assumes the same input yields the same message.
 export function buildReportMessage(input: {
   periodStart: string;
   periodEnd: string;
-  winners: readonly Winner[];
+  recipientSlackIds: readonly string[];
 }): { text: string; blocks: unknown[] } {
-  const { winners } = input;
-  const mentions = winners.map((w) => `<@${w.recipientSlackId}>`).join(", ");
-  const count = winners[0]?.count ?? 0;
-  const timesWord = count === 1 ? "time" : "times";
-  const nominationsWord = count === 1 ? "nomination" : "nominations";
-  const winnerWord = winners.length === 1 ? "winner" : "winners";
-  const summary =
-    winners.length === 1
-      ? `Congrats to ${mentions}! 🏆 You were recognized *${count} ${timesWord}* this period.`
-      : `Congrats to ${mentions}! 🏆 You tied for the top spot with *${count} ${nominationsWord} each* this period.`;
-
-  const text = `🎉 This period's recognition ${winnerWord}: ${summary}`;
+  const sorted = [...input.recipientSlackIds].sort();
+  const mentions = sorted.map((id) => `<@${id}>`).join(" · ");
+  const summary = `Shoutout to the teammates recognized by their coworkers this period:\n\n${mentions}`;
+  const text = `🎉 Recognition this period — ${mentions}`;
 
   return {
     text,
     blocks: [
       {
         type: "header",
-        text: { type: "plain_text", text: "🎉 Recognition results 🎉", emoji: true },
+        text: { type: "plain_text", text: "🎉 Recognition this period 🎉", emoji: true },
       },
       {
         type: "section",
@@ -33,12 +30,7 @@ export function buildReportMessage(input: {
       },
       {
         type: "context",
-        elements: [
-          {
-            type: "mrkdwn",
-            text: "Thanks for taking the time to recognize your coworkers. 💛",
-          },
-        ],
+        elements: [{ type: "mrkdwn", text: PROGRAM_DISCLAIMER }],
       },
     ],
   };

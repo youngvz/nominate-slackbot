@@ -128,6 +128,10 @@ Ineligible account:
 
 > That account can't receive recognition. Please pick an active teammate in this workspace.
 
+Program disclaimer footer (appended to the weekly reminder and biweekly report — both winner and no-activity variants — as a `context` block; not shown in DMs or ephemeral responses):
+
+> KudosBot is for informal peer recognition only and does not replace or impact formal employee reviews. Official performance evaluations continue through our standard HR process.
+
 ## Channel configuration
 
 Reminders and reports use one shared channel. Its Slack channel ID is supplied as deployment configuration, for example:
